@@ -1636,26 +1636,26 @@ README의 첫 예시는 너무 단순한 todo list가 아니라, `onSelect`, `on
 
 ### 1. Core Model
 
-- [ ] `LKListModel`을 정의합니다.
-- [ ] `LKSectionModel`을 정의합니다.
-- [ ] `LKItemModel`을 정의합니다.
-- [ ] `LKSupplementaryModel`을 정의합니다.
-- [ ] section id를 `AnyHashable`로 안정적으로 저장합니다.
-- [ ] item id를 `AnyHashable`로 안정적으로 저장합니다.
-- [ ] item content equality용 `contentToken` 또는 `equatableToken`을 설계합니다.
-- [ ] header/footer content equality용 token을 설계합니다.
-- [ ] `IndexPath -> LKItemModel` lookup helper를 구현합니다.
-- [ ] `section index -> LKSectionModel` lookup helper를 구현합니다.
-- [ ] `section index + kind -> LKSupplementaryModel` lookup helper를 구현합니다.
-- [ ] duplicate section id 검사 로직을 구현합니다.
-- [ ] duplicate item id 검사 로직을 구현합니다.
-- [ ] debug build assertion과 release fallback 정책을 분리합니다.
+- [x] `LKListModel`을 정의합니다.
+- [x] `LKSectionModel`을 정의합니다.
+- [x] `LKItemModel`을 정의합니다.
+- [x] `LKSupplementaryModel`을 정의합니다.
+- [x] section id를 `AnyHashable`로 안정적으로 저장합니다.
+- [x] item id를 `AnyHashable`로 안정적으로 저장합니다.
+- [x] item content equality용 `contentToken` 또는 `equatableToken`을 설계합니다.
+- [x] header/footer content equality용 token을 설계합니다.
+- [x] `IndexPath -> LKItemModel` lookup helper를 구현합니다.
+- [x] `section index -> LKSectionModel` lookup helper를 구현합니다.
+- [x] `section index + kind -> LKSupplementaryModel` lookup helper를 구현합니다.
+- [x] duplicate section id 검사 로직을 구현합니다.
+- [x] duplicate item id 검사 로직을 구현합니다.
+- [x] debug build assertion과 release fallback 정책을 분리합니다.
 
 완료 기준:
 
-- [ ] section/item/supplementary lookup 테스트가 통과합니다.
-- [ ] duplicate id 테스트가 통과합니다.
-- [ ] identity와 content equality가 별도 테스트로 검증됩니다.
+- [x] section/item/supplementary lookup 테스트가 통과합니다.
+- [x] duplicate id 테스트가 통과합니다.
+- [x] identity와 content equality가 별도 테스트로 검증됩니다.
 
 ### 2. Public SwiftUI API
 
