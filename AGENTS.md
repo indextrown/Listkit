@@ -1659,24 +1659,24 @@ README의 첫 예시는 너무 단순한 todo list가 아니라, `onSelect`, `on
 
 ### 2. Public SwiftUI API
 
-- [ ] `LKList` 기본 타입을 정의합니다.
-- [ ] `LKList(data:id:rowContent:)` initializer를 구현합니다.
-- [ ] `LKList(@LKListBuilder content:)` initializer를 구현합니다.
-- [ ] `LKSection` DSL 타입을 구현합니다.
-- [ ] `LKRow` DSL 타입을 구현합니다.
-- [ ] `@LKListBuilder`를 구현합니다.
-- [ ] `@LKSectionBuilder` 또는 row builder를 구현합니다.
-- [ ] 단일 섹션 data initializer가 `LKListModel`로 변환되게 합니다.
-- [ ] 섹션 DSL이 `LKListModel`로 변환되게 합니다.
-- [ ] row-level modifier 저장 구조를 만듭니다.
-- [ ] section-level modifier 저장 구조를 만듭니다.
-- [ ] list-level modifier 저장 구조를 만듭니다.
+- [x] `LKList` 기본 타입을 정의합니다.
+- [x] `LKList(data:id:rowContent:)` initializer를 구현합니다.
+- [x] `LKList(@LKListBuilder content:)` initializer를 구현합니다.
+- [x] `LKSection` DSL 타입을 구현합니다.
+- [x] `LKRow` DSL 타입을 구현합니다.
+- [x] `@LKListBuilder`를 구현합니다.
+- [x] `@LKSectionBuilder` 또는 row builder를 구현합니다.
+- [x] 단일 섹션 data initializer가 `LKListModel`로 변환되게 합니다.
+- [x] 섹션 DSL이 `LKListModel`로 변환되게 합니다.
+- [x] row-level modifier 저장 구조를 만듭니다.
+- [x] section-level modifier 저장 구조를 만듭니다.
+- [x] list-level modifier 저장 구조를 만듭니다.
 
 완료 기준:
 
-- [ ] 단일 data list 예제가 컴파일됩니다.
-- [ ] 여러 section/header/footer DSL 예제가 컴파일됩니다.
-- [ ] builder 결과 모델 테스트가 통과합니다.
+- [x] 단일 data list 예제가 컴파일됩니다.
+- [x] 여러 section/header/footer DSL 예제가 컴파일됩니다.
+- [x] builder 결과 모델 테스트가 통과합니다.
 
 ### 3. UIViewRepresentable Bridge
 
