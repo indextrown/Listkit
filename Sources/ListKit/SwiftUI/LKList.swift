@@ -1,6 +1,7 @@
 #if canImport(SwiftUI)
 import SwiftUI
 
+@MainActor
 public struct LKList<Content: View>: View {
     let model: LKListModel
     let events: LKListEvents
@@ -18,14 +19,17 @@ public struct LKList<Content: View>: View {
     public init<Data, ID>(
         _ data: Data,
         id: KeyPath<Data.Element, ID>,
-        @ViewBuilder rowContent: @escaping (Data.Element) -> Content
+        @ViewBuilder rowContent: @escaping @MainActor (Data.Element) -> Content
     )
     where
         Data: RandomAccessCollection,
         ID: Hashable
     {
-        let items = data.map {
-            LKItemModel(id: $0[keyPath: id])
+        let items = data.map { element in
+            LKItemModel(
+                id: element[keyPath: id],
+                makeContent: { AnyView(rowContent(element)) }
+            )
         }
         self.model = LKListModel(
             sections: [
@@ -34,7 +38,6 @@ public struct LKList<Content: View>: View {
         )
         self.events = LKListEvents()
         self.sections = []
-        _ = data.map(rowContent)
     }
 
     public init(@LKListBuilder content: () -> [LKSection]) where Content == EmptyView {

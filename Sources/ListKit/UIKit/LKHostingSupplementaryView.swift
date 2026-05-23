@@ -1,5 +1,50 @@
 #if canImport(UIKit) && canImport(SwiftUI)
 import UIKit
+import SwiftUI
 
-final class LKHostingSupplementaryView: UICollectionReusableView {}
+final class LKHostingSupplementaryView: UICollectionReusableView {
+    private(set) var renderedSupplementaryID: AnyHashable?
+    private(set) var hostedContentView: UIView?
+    private(set) var renderedState = LKCellState.inactive
+    private var onSizeChange: ((CGSize) -> Void)?
+
+    func render(
+        supplementary: LKSupplementaryModel,
+        state: LKCellState = .inactive,
+        onSizeChange: ((CGSize) -> Void)? = nil
+    ) {
+        renderedSupplementaryID = supplementary.id
+        renderedState = state
+        self.onSizeChange = onSizeChange
+        hostedContentView?.removeFromSuperview()
+
+        guard let makeContent = supplementary.makeContent else {
+            hostedContentView = nil
+            return
+        }
+
+        let contentView = UIHostingConfiguration {
+            makeContent()
+                .environment(\.lkCellState, state)
+        }.makeContentView()
+
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(contentView)
+        NSLayoutConstraint.activate([
+            contentView.topAnchor.constraint(equalTo: topAnchor),
+            contentView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            contentView.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+        hostedContentView = contentView
+    }
+
+    override func preferredLayoutAttributesFitting(
+        _ layoutAttributes: UICollectionViewLayoutAttributes
+    ) -> UICollectionViewLayoutAttributes {
+        let fittedAttributes = super.preferredLayoutAttributesFitting(layoutAttributes)
+        onSizeChange?(fittedAttributes.size)
+        return fittedAttributes
+    }
+}
 #endif

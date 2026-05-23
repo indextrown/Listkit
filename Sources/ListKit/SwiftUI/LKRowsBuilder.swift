@@ -2,6 +2,7 @@
 import SwiftUI
 
 @resultBuilder
+@MainActor
 public enum LKRowsBuilder {
     public static func buildBlock(_ components: [LKAnyRow]...) -> [LKAnyRow] {
         components.flatMap { $0 }

@@ -1720,21 +1720,21 @@ README의 첫 예시는 너무 단순한 todo list가 아니라, `onSelect`, `on
 
 ### 5. Hosting Cell과 Supplementary View
 
-- [ ] `LKHostingCollectionViewCell`을 구현합니다.
-- [ ] `LKHostingSupplementaryView`를 구현합니다.
-- [ ] iOS 16 이상 `UIHostingConfiguration` 경로를 구현합니다.
-- [ ] 필요 시 `UIHostingController` fallback 설계를 남깁니다.
-- [ ] cell reuse 시 이전 content state가 새 row로 새지 않게 합니다.
-- [ ] supplementary reuse 시 이전 header/footer state가 새 section으로 새지 않게 합니다.
-- [ ] selected/highlighted/focused state를 SwiftUI environment로 전달하는 기반을 만듭니다.
-- [ ] self-sizing이 필요한 경우 preferred fitting 경로를 구현합니다.
-- [ ] size change callback이 adapter size storage로 전달되게 합니다.
+- [x] `LKHostingCollectionViewCell`을 구현합니다.
+- [x] `LKHostingSupplementaryView`를 구현합니다.
+- [x] iOS 16 이상 `UIHostingConfiguration` 경로를 구현합니다.
+- [x] 필요 시 `UIHostingController` fallback 설계를 남깁니다.
+- [x] cell reuse 시 이전 content state가 새 row로 새지 않게 합니다.
+- [x] supplementary reuse 시 이전 header/footer state가 새 section으로 새지 않게 합니다.
+- [x] selected/highlighted/focused state를 SwiftUI environment로 전달하는 기반을 만듭니다.
+- [x] self-sizing이 필요한 경우 preferred fitting 경로를 구현합니다.
+- [x] size change callback이 adapter size storage로 전달되게 합니다.
 
 완료 기준:
 
-- [ ] SwiftUI row content가 cell에 표시됩니다.
-- [ ] header/footer SwiftUI content가 supplementary view에 표시됩니다.
-- [ ] reuse 후 다른 row content가 정확히 렌더링됩니다.
+- [x] SwiftUI row content가 cell에 표시됩니다.
+- [x] header/footer SwiftUI content가 supplementary view에 표시됩니다.
+- [x] reuse 후 다른 row content가 정확히 렌더링됩니다.
 
 ### 6. Layout
 

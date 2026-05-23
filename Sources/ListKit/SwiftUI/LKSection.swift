@@ -1,6 +1,7 @@
 #if canImport(SwiftUI)
 import SwiftUI
 
+@MainActor
 public struct LKSection {
     public let model: LKSectionModel
     public let events: LKSectionEvents
@@ -23,13 +24,16 @@ public struct LKSection {
     public init<Header: View>(
         id: some Hashable,
         @LKRowsBuilder _ rows: () -> [LKAnyRow],
-        @ViewBuilder header: () -> Header
+        @ViewBuilder header: @escaping @MainActor () -> Header
     ) {
-        _ = header()
         self.init(
             id: id,
             rows: rows(),
-            header: LKSupplementaryModel(id: AnyHashable(id), kind: .header),
+            header: LKSupplementaryModel(
+                id: AnyHashable(id),
+                kind: .header,
+                makeContent: { AnyView(header()) }
+            ),
             footer: nil
         )
     }
@@ -37,16 +41,22 @@ public struct LKSection {
     public init<Header: View, Footer: View>(
         id: some Hashable,
         @LKRowsBuilder _ rows: () -> [LKAnyRow],
-        @ViewBuilder header: () -> Header,
-        @ViewBuilder footer: () -> Footer
+        @ViewBuilder header: @escaping @MainActor () -> Header,
+        @ViewBuilder footer: @escaping @MainActor () -> Footer
     ) {
-        _ = header()
-        _ = footer()
         self.init(
             id: id,
             rows: rows(),
-            header: LKSupplementaryModel(id: AnyHashable(id), kind: .header),
-            footer: LKSupplementaryModel(id: AnyHashable(id), kind: .footer)
+            header: LKSupplementaryModel(
+                id: AnyHashable(id),
+                kind: .header,
+                makeContent: { AnyView(header()) }
+            ),
+            footer: LKSupplementaryModel(
+                id: AnyHashable(id),
+                kind: .footer,
+                makeContent: { AnyView(footer()) }
+            )
         )
     }
 

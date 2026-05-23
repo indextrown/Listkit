@@ -12,6 +12,11 @@ struct LKSupplementaryRegistrationKey: Hashable {
     let hostingStrategy: LKHostingStrategy
 }
 
+struct LKSupplementarySizeKey: Hashable {
+    let kind: String
+    let indexPath: IndexPath
+}
+
 @MainActor
 final class LKCollectionViewAdapter: NSObject {
     private weak var collectionView: UICollectionView?
@@ -19,6 +24,8 @@ final class LKCollectionViewAdapter: NSObject {
     private(set) var registeredCellKeys = Set<LKCellRegistrationKey>()
     private(set) var registeredHeaderKeys = Set<LKSupplementaryRegistrationKey>()
     private(set) var registeredFooterKeys = Set<LKSupplementaryRegistrationKey>()
+    private(set) var itemSizeStorage = [IndexPath: CGSize]()
+    private(set) var supplementarySizeStorage = [LKSupplementarySizeKey: CGSize]()
     private var isUpdating = false
     private var queuedUpdate: LKListModel?
     var reloadDataHandler: (() -> Void)?
@@ -53,6 +60,15 @@ final class LKCollectionViewAdapter: NSObject {
             self.queuedUpdate = nil
             apply(queuedUpdate)
         }
+    }
+
+    func recordItemSize(_ size: CGSize, at indexPath: IndexPath) {
+        itemSizeStorage[indexPath] = size
+    }
+
+    func recordSupplementarySize(_ size: CGSize, kind: String, at indexPath: IndexPath) {
+        let key = LKSupplementarySizeKey(kind: kind, indexPath: indexPath)
+        supplementarySizeStorage[key] = size
     }
 
     private func registerReuseIdentifiersIfNeeded(from model: LKListModel) {
@@ -151,10 +167,14 @@ extension LKCollectionViewAdapter: UICollectionViewDataSource {
             return UICollectionViewCell()
         }
 
-        return collectionView.dequeueReusableCell(
+        let cell = collectionView.dequeueReusableCell(
             withReuseIdentifier: item.reuseIdentifier,
             for: indexPath
         )
+        (cell as? LKHostingCollectionViewCell)?.render(item: item) { [weak self] size in
+            self?.recordItemSize(size, at: indexPath)
+        }
+        return cell
     }
 
     func collectionView(
@@ -177,11 +197,15 @@ extension LKCollectionViewAdapter: UICollectionViewDataSource {
             return UICollectionReusableView()
         }
 
-        return collectionView.dequeueReusableSupplementaryView(
+        let view = collectionView.dequeueReusableSupplementaryView(
             ofKind: kind,
             withReuseIdentifier: supplementary.reuseIdentifier,
             for: indexPath
         )
+        (view as? LKHostingSupplementaryView)?.render(supplementary: supplementary) { [weak self] size in
+            self?.recordSupplementarySize(size, kind: kind, at: indexPath)
+        }
+        return view
     }
 }
 

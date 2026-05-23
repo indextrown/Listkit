@@ -1,6 +1,7 @@
 #if canImport(UIKit) && canImport(SwiftUI)
 import XCTest
 import UIKit
+import SwiftUI
 @testable import ListKit
 
 @MainActor
@@ -51,8 +52,177 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         XCTAssertEqual(adapter.collectionView(collectionView, numberOfItemsInSection: 0), 1)
     }
 
+    func testDequeuedCellRendersSwiftUIContentConfiguration() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let item = LKItemModel(id: "item") {
+            AnyView(Text("Row"))
+        }
+        let model = LKListModel(sections: [LKSectionModel(id: "section", items: [item])])
+
+        adapter.apply(model)
+
+        let cell = adapter.collectionView(
+            collectionView,
+            cellForItemAt: IndexPath.lkIndexPath(item: 0, section: 0)
+        ) as? LKHostingCollectionViewCell
+
+        XCTAssertEqual(cell?.renderedItemID, AnyHashable("item"))
+        XCTAssertNotNil(cell?.contentConfiguration)
+        XCTAssertEqual(cell?.renderedState, .inactive)
+    }
+
+    func testDequeuedSupplementaryViewsRenderSwiftUIConfigurations() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let header = LKSupplementaryModel(id: "header", kind: .header) {
+            AnyView(Text("Header"))
+        }
+        let footer = LKSupplementaryModel(id: "footer", kind: .footer) {
+            AnyView(Text("Footer"))
+        }
+        let model = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", header: header, footer: footer),
+            ]
+        )
+
+        adapter.apply(model)
+        collectionView.layoutIfNeeded()
+
+        let headerView = adapter.collectionView(
+            collectionView,
+            viewForSupplementaryElementOfKind: UICollectionView.elementKindSectionHeader,
+            at: IndexPath.lkIndexPath(item: 0, section: 0)
+        ) as? LKHostingSupplementaryView
+        let footerView = adapter.collectionView(
+            collectionView,
+            viewForSupplementaryElementOfKind: UICollectionView.elementKindSectionFooter,
+            at: IndexPath.lkIndexPath(item: 0, section: 0)
+        ) as? LKHostingSupplementaryView
+
+        XCTAssertEqual(headerView?.renderedSupplementaryID, AnyHashable("header"))
+        XCTAssertEqual(footerView?.renderedSupplementaryID, AnyHashable("footer"))
+        XCTAssertNotNil(headerView?.hostedContentView)
+        XCTAssertNotNil(footerView?.hostedContentView)
+    }
+
+    func testCellConfigurationStateIsRenderedIntoSwiftUIEnvironmentState() {
+        let cell = LKHostingCollectionViewCell(frame: .zero)
+        let item = LKItemModel(id: "item") {
+            AnyView(Text("Row"))
+        }
+
+        cell.render(item: item)
+        cell.isSelected = true
+        cell.isHighlighted = true
+        cell.setNeedsUpdateConfiguration()
+        cell.updateConfiguration(using: cell.configurationState)
+
+        XCTAssertEqual(
+            cell.renderedState,
+            LKCellState(isSelected: true, isHighlighted: true, isFocused: false)
+        )
+    }
+
+    func testHostingCellReuseUpdatesRenderedItemID() {
+        let cell = LKHostingCollectionViewCell(frame: .zero)
+        let first = LKItemModel(id: "first") {
+            AnyView(Text("First"))
+        }
+        let second = LKItemModel(id: "second") {
+            AnyView(Text("Second"))
+        }
+
+        cell.render(item: first)
+        cell.render(item: second)
+
+        XCTAssertEqual(cell.renderedItemID, AnyHashable("second"))
+        XCTAssertNotNil(cell.contentConfiguration)
+    }
+
+    func testHostingSupplementaryReuseReplacesHostedContentView() {
+        let supplementaryView = LKHostingSupplementaryView(frame: .zero)
+        let first = LKSupplementaryModel(id: "first", kind: .header) {
+            AnyView(Text("First"))
+        }
+        let second = LKSupplementaryModel(id: "second", kind: .header) {
+            AnyView(Text("Second"))
+        }
+
+        supplementaryView.render(supplementary: first)
+        let firstHostedContentView = supplementaryView.hostedContentView
+        supplementaryView.render(supplementary: second)
+
+        XCTAssertEqual(supplementaryView.renderedSupplementaryID, AnyHashable("second"))
+        XCTAssertNotNil(supplementaryView.hostedContentView)
+        XCTAssertFalse(supplementaryView.hostedContentView === firstHostedContentView)
+        XCTAssertNil(firstHostedContentView?.superview)
+    }
+
+    func testAdapterStoresCellAndSupplementarySizeCallbacks() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let indexPath = IndexPath.lkIndexPath(item: 0, section: 0)
+        let itemSize = CGSize(width: 320, height: 44)
+        let supplementarySize = CGSize(width: 320, height: 28)
+
+        adapter.recordItemSize(itemSize, at: indexPath)
+        adapter.recordSupplementarySize(
+            supplementarySize,
+            kind: UICollectionView.elementKindSectionHeader,
+            at: indexPath
+        )
+
+        XCTAssertEqual(adapter.itemSizeStorage[indexPath], itemSize)
+        XCTAssertEqual(
+            adapter.supplementarySizeStorage[
+                LKSupplementarySizeKey(kind: UICollectionView.elementKindSectionHeader, indexPath: indexPath)
+            ],
+            supplementarySize
+        )
+    }
+
+    func testHostingViewsInvokeSizeChangeCallbacks() {
+        let indexPath = IndexPath.lkIndexPath(item: 0, section: 0)
+        let cell = LKHostingCollectionViewCell(frame: CGRect(x: 0, y: 0, width: 320, height: 44))
+        let supplementaryView = LKHostingSupplementaryView(frame: CGRect(x: 0, y: 0, width: 320, height: 28))
+        let item = LKItemModel(id: "item") {
+            AnyView(Text("Row"))
+        }
+        let header = LKSupplementaryModel(id: "header", kind: .header) {
+            AnyView(Text("Header"))
+        }
+        var itemSize: CGSize?
+        var supplementarySize: CGSize?
+
+        cell.render(item: item) { size in
+            itemSize = size
+        }
+        supplementaryView.render(supplementary: header) { size in
+            supplementarySize = size
+        }
+
+        _ = cell.preferredLayoutAttributesFitting(UICollectionViewLayoutAttributes(forCellWith: indexPath))
+        _ = supplementaryView.preferredLayoutAttributesFitting(
+            UICollectionViewLayoutAttributes(
+                forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
+                with: indexPath
+            )
+        )
+
+        XCTAssertNotNil(itemSize)
+        XCTAssertNotNil(supplementarySize)
+    }
+
     private func makeCollectionView() -> UICollectionView {
-        UICollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout())
+        let layout = UICollectionViewFlowLayout()
+        layout.headerReferenceSize = CGSize(width: 320, height: 44)
+        layout.footerReferenceSize = CGSize(width: 320, height: 44)
+        return UICollectionView(
+            frame: CGRect(x: 0, y: 0, width: 320, height: 480),
+            collectionViewLayout: layout
+        )
     }
 
     private func makeModel(

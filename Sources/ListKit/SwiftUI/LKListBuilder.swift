@@ -1,5 +1,6 @@
 #if canImport(SwiftUI)
 @resultBuilder
+@MainActor
 public enum LKListBuilder {
     public static func buildBlock(_ components: [LKSection]...) -> [LKSection] {
         components.flatMap { $0 }

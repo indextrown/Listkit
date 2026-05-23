@@ -1,22 +1,24 @@
 #if canImport(SwiftUI)
 import SwiftUI
 
+@MainActor
 public struct LKRow<Item, Content: View> {
     public let item: Item
     public let model: LKItemModel
     public let events: LKRowEvents
-    private let content: (Item) -> Content
+    private let content: @MainActor (Item) -> Content
 
     public init<ID: Hashable>(
         _ item: Item,
         id: KeyPath<Item, ID>,
         reuseIdentifier: String = "ListKit.LKHostingCollectionViewCell",
-        @ViewBuilder content: @escaping () -> Content
+        @ViewBuilder content: @escaping @MainActor () -> Content
     ) {
         self.item = item
         self.model = LKItemModel(
             id: item[keyPath: id],
-            reuseIdentifier: reuseIdentifier
+            reuseIdentifier: reuseIdentifier,
+            makeContent: { AnyView(content()) }
         )
         self.events = LKRowEvents()
         self.content = { _ in content() }
@@ -25,10 +27,14 @@ public struct LKRow<Item, Content: View> {
     public init(
         id: some Hashable,
         reuseIdentifier: String = "ListKit.LKHostingCollectionViewCell",
-        @ViewBuilder content: @escaping () -> Content
+        @ViewBuilder content: @escaping @MainActor () -> Content
     ) where Item == Void {
         self.item = ()
-        self.model = LKItemModel(id: id, reuseIdentifier: reuseIdentifier)
+        self.model = LKItemModel(
+            id: id,
+            reuseIdentifier: reuseIdentifier,
+            makeContent: { AnyView(content()) }
+        )
         self.events = LKRowEvents()
         self.content = { _ in content() }
     }
@@ -37,7 +43,7 @@ public struct LKRow<Item, Content: View> {
         item: Item,
         model: LKItemModel,
         events: LKRowEvents,
-        content: @escaping (Item) -> Content
+        content: @escaping @MainActor (Item) -> Content
     ) {
         self.item = item
         self.model = model
@@ -52,7 +58,8 @@ public struct LKRow<Item, Content: View> {
                 id: model.id,
                 reuseIdentifier: model.reuseIdentifier,
                 hostingStrategy: model.hostingStrategy,
-                contentToken: AnyHashable(token)
+                contentToken: AnyHashable(token),
+                makeContent: model.makeContent ?? { AnyView(content(item)) }
             ),
             events: events,
             content: content
