@@ -21,6 +21,7 @@ final class LKCollectionViewAdapter: NSObject {
     private(set) var registeredFooterKeys = Set<LKSupplementaryRegistrationKey>()
     private var isUpdating = false
     private var queuedUpdate: LKListModel?
+    var reloadDataHandler: (() -> Void)?
 
     init(collectionView: UICollectionView, model: LKListModel = .empty) {
         self.collectionView = collectionView
@@ -41,7 +42,11 @@ final class LKCollectionViewAdapter: NSObject {
         model.validateForApply()
         registerReuseIdentifiersIfNeeded(from: model)
         currentModel = model
-        collectionView?.reloadData()
+        if let reloadDataHandler {
+            reloadDataHandler()
+        } else {
+            collectionView?.reloadData()
+        }
         isUpdating = false
 
         if let queuedUpdate {

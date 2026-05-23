@@ -1714,9 +1714,9 @@ README의 첫 예시는 너무 단순한 todo list가 아니라, `onSelect`, `on
 
 완료 기준:
 
-- [ ] cell/header/footer registration이 중복 호출되지 않는 테스트가 통과합니다.
-- [ ] apply 중 queued update가 마지막 요청 기준으로 처리됩니다.
-- [ ] adapter snapshot 조회 테스트가 통과합니다.
+- [x] cell/header/footer registration이 중복 호출되지 않는 테스트가 통과합니다.
+- [x] apply 중 queued update가 마지막 요청 기준으로 처리됩니다.
+- [x] adapter snapshot 조회 테스트가 통과합니다.
 
 ### 5. Hosting Cell과 Supplementary View
 
