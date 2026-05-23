@@ -1695,22 +1695,22 @@ README의 첫 예시는 너무 단순한 todo list가 아니라, `onSelect`, `on
 
 ### 4. Adapter 1차 구현
 
-- [ ] `LKCollectionViewAdapter`를 `@MainActor final class`로 구현합니다.
-- [ ] adapter가 `UICollectionViewDelegate`를 담당합니다.
-- [ ] adapter가 `UICollectionViewDataSource`를 담당합니다.
-- [ ] adapter가 현재 `LKListModel` snapshot을 보관합니다.
-- [ ] adapter가 `registeredCellKeys` set을 보관합니다.
-- [ ] adapter가 `registeredHeaderKeys` set을 보관합니다.
-- [ ] adapter가 `registeredFooterKeys` set을 보관합니다.
-- [ ] `LKCellRegistrationKey`를 구현합니다.
-- [ ] `LKSupplementaryRegistrationKey`를 구현합니다.
-- [ ] `registerReuseIdentifiersIfNeeded(from:)`를 구현합니다.
-- [ ] `registerCellIfNeeded(_:)`를 구현합니다.
-- [ ] `registerHeaderIfNeeded(_:)`를 구현합니다.
-- [ ] `registerFooterIfNeeded(_:)`를 구현합니다.
-- [ ] adapter는 cell/header/footer 인스턴스를 보관하지 않습니다.
-- [ ] update 중 들어온 apply 요청을 `queuedUpdate`로 마지막 요청만 보존합니다.
-- [ ] 최초 apply는 `reloadData`로 동작합니다.
+- [x] `LKCollectionViewAdapter`를 `@MainActor final class`로 구현합니다.
+- [x] adapter가 `UICollectionViewDelegate`를 담당합니다.
+- [x] adapter가 `UICollectionViewDataSource`를 담당합니다.
+- [x] adapter가 현재 `LKListModel` snapshot을 보관합니다.
+- [x] adapter가 `registeredCellKeys` set을 보관합니다.
+- [x] adapter가 `registeredHeaderKeys` set을 보관합니다.
+- [x] adapter가 `registeredFooterKeys` set을 보관합니다.
+- [x] `LKCellRegistrationKey`를 구현합니다.
+- [x] `LKSupplementaryRegistrationKey`를 구현합니다.
+- [x] `registerReuseIdentifiersIfNeeded(from:)`를 구현합니다.
+- [x] `registerCellIfNeeded(_:)`를 구현합니다.
+- [x] `registerHeaderIfNeeded(_:)`를 구현합니다.
+- [x] `registerFooterIfNeeded(_:)`를 구현합니다.
+- [x] adapter는 cell/header/footer 인스턴스를 보관하지 않습니다.
+- [x] update 중 들어온 apply 요청을 `queuedUpdate`로 마지막 요청만 보존합니다.
+- [x] 최초 apply는 `reloadData`로 동작합니다.
 
 완료 기준:
 
