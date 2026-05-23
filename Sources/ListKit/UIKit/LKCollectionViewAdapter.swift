@@ -28,11 +28,21 @@ final class LKCollectionViewAdapter: NSObject {
     private(set) var supplementarySizeStorage = [LKSupplementarySizeKey: CGSize]()
     private var isUpdating = false
     private var queuedUpdate: LKListModel?
+    private let updateCoordinator: LKUpdateCoordinator
     var reloadDataHandler: (() -> Void)?
+    var focusRestorationHandler: (() -> Void)? {
+        get { updateCoordinator.focusRestorationHandler }
+        set { updateCoordinator.focusRestorationHandler = newValue }
+    }
 
-    init(collectionView: UICollectionView, model: LKListModel = .empty) {
+    init(
+        collectionView: UICollectionView,
+        model: LKListModel = .empty,
+        updateEngine: LKUpdateEngine = .reloadData
+    ) {
         self.collectionView = collectionView
         self.currentModel = model
+        self.updateCoordinator = LKUpdateCoordinator(engine: updateEngine)
         super.init()
         collectionView.delegate = self
         collectionView.dataSource = self
@@ -46,14 +56,23 @@ final class LKCollectionViewAdapter: NSObject {
         }
 
         isUpdating = true
-        model.validateForApply()
-        registerReuseIdentifiersIfNeeded(from: model)
-        currentModel = model
-        if let reloadDataHandler {
-            reloadDataHandler()
-        } else {
-            collectionView?.reloadData()
-        }
+        updateCoordinator.apply(
+            model,
+            currentModel: currentModel,
+            collectionView: collectionView,
+            registerReuseIdentifiers: registerReuseIdentifiersIfNeeded(from:),
+            updateCurrentModel: { [weak self] model in
+                self?.currentModel = model
+            },
+            reloadData: { [weak self] in
+                guard let self else { return }
+                if let reloadDataHandler {
+                    reloadDataHandler()
+                } else {
+                    collectionView?.reloadData()
+                }
+            }
+        )
         isUpdating = false
 
         if let queuedUpdate {
@@ -71,7 +90,7 @@ final class LKCollectionViewAdapter: NSObject {
         supplementarySizeStorage[key] = size
     }
 
-    private func registerReuseIdentifiersIfNeeded(from model: LKListModel) {
+    func registerReuseIdentifiersIfNeeded(from model: LKListModel) {
         for section in model.sections {
             for item in section.items {
                 registerCellIfNeeded(item)

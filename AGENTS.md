@@ -1756,17 +1756,17 @@ README의 첫 예시는 너무 단순한 todo list가 아니라, `onSelect`, `on
 
 ### 7. ReloadData Update Engine
 
-- [ ] `LKUpdateEngine.reloadData`를 구현합니다.
-- [ ] `LKUpdateCoordinator` 또는 adapter 내부 update 분기 구조를 만듭니다.
-- [ ] reload 전 registration 선등록을 보장합니다.
-- [ ] reload 후 current snapshot을 갱신합니다.
-- [ ] reload 후 selection 복원을 best effort로 처리합니다.
-- [ ] reload 후 focus 복원 hook을 남깁니다.
+- [x] `LKUpdateEngine.reloadData`를 구현합니다.
+- [x] `LKUpdateCoordinator` 또는 adapter 내부 update 분기 구조를 만듭니다.
+- [x] reload 전 registration 선등록을 보장합니다.
+- [x] reload 후 current snapshot을 갱신합니다.
+- [x] reload 후 selection 복원을 best effort로 처리합니다.
+- [x] reload 후 focus 복원 hook을 남깁니다.
 
 완료 기준:
 
-- [ ] data append/remove/update가 reload로 화면에 반영됩니다.
-- [ ] reload 후 visible cell이 최신 content를 표시합니다.
+- [x] data append/remove/update가 reload로 화면에 반영됩니다.
+- [x] reload 후 visible cell이 최신 content를 표시합니다.
 
 ### 8. Diffable Data Source Engine
 

@@ -52,6 +52,129 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         XCTAssertEqual(adapter.collectionView(collectionView, numberOfItemsInSection: 0), 1)
     }
 
+    func testReloadDataApplyReflectsAppendRemoveAndUpdate() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let oneItem = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [LKItemModel(id: "one")]),
+            ]
+        )
+        let twoItems = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "one"),
+                    LKItemModel(id: "two"),
+                ]),
+            ]
+        )
+        let noItems = LKListModel(sections: [LKSectionModel(id: "section")])
+
+        adapter.apply(oneItem)
+        XCTAssertEqual(adapter.collectionView(collectionView, numberOfItemsInSection: 0), 1)
+
+        adapter.apply(twoItems)
+        XCTAssertEqual(adapter.collectionView(collectionView, numberOfItemsInSection: 0), 2)
+
+        adapter.apply(noItems)
+        XCTAssertEqual(adapter.collectionView(collectionView, numberOfItemsInSection: 0), 0)
+    }
+
+    func testReloadDataRegistersReuseIdentifiersBeforeReload() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let item = LKItemModel(id: "item", reuseIdentifier: "custom-cell")
+        let model = LKListModel(sections: [LKSectionModel(id: "section", items: [item])])
+        var didRegisterBeforeReload = false
+
+        adapter.reloadDataHandler = {
+            didRegisterBeforeReload = adapter.registeredCellKeys.contains(
+                LKCellRegistrationKey(
+                    reuseIdentifier: "custom-cell",
+                    hostingStrategy: .hostingConfiguration
+                )
+            )
+        }
+
+        adapter.apply(model)
+
+        XCTAssertTrue(didRegisterBeforeReload)
+    }
+
+    func testReloadDataDequeuedCellUsesLatestModelAfterUpdate() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let first = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [LKItemModel(id: "first")]),
+            ]
+        )
+        let latest = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [LKItemModel(id: "latest")]),
+            ]
+        )
+
+        adapter.apply(first)
+        adapter.apply(latest)
+
+        let cell = adapter.collectionView(
+            collectionView,
+            cellForItemAt: IndexPath.lkIndexPath(item: 0, section: 0)
+        ) as? LKHostingCollectionViewCell
+
+        XCTAssertEqual(cell?.renderedItemID, AnyHashable("latest"))
+    }
+
+    func testReloadDataRestoresSelectionByItemIdentity() {
+        let collectionView = makeCollectionView()
+        collectionView.allowsSelection = true
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let original = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "selected"),
+                    LKItemModel(id: "other"),
+                ]),
+            ]
+        )
+        let reordered = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "other"),
+                    LKItemModel(id: "selected"),
+                ]),
+            ]
+        )
+
+        adapter.apply(original)
+        collectionView.selectItem(
+            at: IndexPath.lkIndexPath(item: 0, section: 0),
+            animated: false,
+            scrollPosition: []
+        )
+        adapter.apply(reordered)
+
+        XCTAssertEqual(collectionView.indexPathsForSelectedItems, [
+            IndexPath.lkIndexPath(item: 1, section: 0),
+        ])
+    }
+
+    func testReloadDataCallsFocusRestorationHook() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let model = makeModel()
+        var didCallFocusHook = false
+
+        adapter.focusRestorationHandler = {
+            didCallFocusHook = true
+        }
+
+        adapter.apply(model)
+
+        XCTAssertTrue(didCallFocusHook)
+    }
+
     func testDequeuedCellRendersSwiftUIContentConfiguration() {
         let collectionView = makeCollectionView()
         let adapter = LKCollectionViewAdapter(collectionView: collectionView)
