@@ -77,5 +77,33 @@ public struct LKSection {
             footer: footer
         )
     }
+
+    #if canImport(UIKit)
+    private init(
+        model: LKSectionModel,
+        events: LKSectionEvents,
+        headerEvents: LKSupplementaryEvents,
+        footerEvents: LKSupplementaryEvents,
+        rows: [LKAnyRow]
+    ) {
+        self.model = model
+        self.events = events
+        self.headerEvents = headerEvents
+        self.footerEvents = footerEvents
+        self.rows = rows
+    }
+
+    public func sectionLayout(_ layout: LKSectionLayout) -> Self {
+        var model = model
+        model.layout = layout
+        return Self(
+            model: model,
+            events: events,
+            headerEvents: headerEvents,
+            footerEvents: footerEvents,
+            rows: rows
+        )
+    }
+    #endif
 }
 #endif

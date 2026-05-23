@@ -5,6 +5,9 @@ public struct LKSectionModel: Equatable {
     public var header: LKSupplementaryModel?
     public var footer: LKSupplementaryModel?
     public var supplementaries: [LKSupplementaryModel]
+    #if canImport(UIKit)
+    public var layout: LKSectionLayout?
+    #endif
 
     public init(
         id: some Hashable,
@@ -18,7 +21,28 @@ public struct LKSectionModel: Equatable {
         self.header = header
         self.footer = footer
         self.supplementaries = supplementaries
+        #if canImport(UIKit)
+        self.layout = nil
+        #endif
     }
+
+    #if canImport(UIKit)
+    public init(
+        id: some Hashable,
+        items: [LKItemModel] = [],
+        header: LKSupplementaryModel? = nil,
+        footer: LKSupplementaryModel? = nil,
+        supplementaries: [LKSupplementaryModel] = [],
+        layout: LKSectionLayout?
+    ) {
+        self.id = AnyHashable(id)
+        self.items = items
+        self.header = header
+        self.footer = footer
+        self.supplementaries = supplementaries
+        self.layout = layout
+    }
+    #endif
 
     public func supplementary(kind: LKSupplementaryKind) -> LKSupplementaryModel? {
         switch kind {
@@ -29,5 +53,19 @@ public struct LKSectionModel: Equatable {
         case .custom:
             supplementaries.first { $0.kind == kind }
         }
+    }
+
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        let coreIsEqual = lhs.id == rhs.id
+            && lhs.items == rhs.items
+            && lhs.header == rhs.header
+            && lhs.footer == rhs.footer
+            && lhs.supplementaries == rhs.supplementaries
+
+        #if canImport(UIKit)
+        return coreIsEqual && lhs.layout == rhs.layout
+        #else
+        return coreIsEqual
+        #endif
     }
 }

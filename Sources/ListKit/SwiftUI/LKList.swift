@@ -6,11 +6,14 @@ public struct LKList<Content: View>: View {
     let model: LKListModel
     let events: LKListEvents
     let sections: [LKSection]
+    #if canImport(UIKit)
+    let style: LKListStyle
+    #endif
 
     @ViewBuilder
     public var body: some View {
         #if canImport(UIKit)
-        LKCollectionViewRepresentable(model: model)
+        LKCollectionViewRepresentable(model: model, style: style)
         #else
         EmptyView()
         #endif
@@ -38,6 +41,9 @@ public struct LKList<Content: View>: View {
         )
         self.events = LKListEvents()
         self.sections = []
+        #if canImport(UIKit)
+        self.style = .plain
+        #endif
     }
 
     public init(@LKListBuilder content: () -> [LKSection]) where Content == EmptyView {
@@ -45,6 +51,27 @@ public struct LKList<Content: View>: View {
         self.sections = sections
         self.model = LKListModel(sections: sections.map(\.model))
         self.events = LKListEvents()
+        #if canImport(UIKit)
+        self.style = .plain
+        #endif
     }
+
+    #if canImport(UIKit)
+    private init(
+        model: LKListModel,
+        events: LKListEvents,
+        sections: [LKSection],
+        style: LKListStyle
+    ) {
+        self.model = model
+        self.events = events
+        self.sections = sections
+        self.style = style
+    }
+
+    public func listKitStyle(_ style: LKListStyle) -> Self {
+        Self(model: model, events: events, sections: sections, style: style)
+    }
+    #endif
 }
 #endif

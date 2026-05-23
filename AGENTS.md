@@ -1738,21 +1738,21 @@ README의 첫 예시는 너무 단순한 todo list가 아니라, `onSelect`, `on
 
 ### 6. Layout
 
-- [ ] 기본 `.plain` list layout을 구현합니다.
-- [ ] `.grouped` layout을 구현합니다.
-- [ ] `.insetGrouped` layout을 구현합니다.
-- [ ] section-level layout override 구조를 구현합니다.
-- [ ] grid layout descriptor를 구현합니다.
-- [ ] custom `NSCollectionLayoutSection` provider API를 구현합니다.
-- [ ] header/footer boundary supplementary item 생성 로직을 구현합니다.
-- [ ] dynamic height row가 estimated size로 동작하게 합니다.
-- [ ] layout adapter가 최신 section model을 조회하게 합니다.
+- [x] 기본 `.plain` list layout을 구현합니다.
+- [x] `.grouped` layout을 구현합니다.
+- [x] `.insetGrouped` layout을 구현합니다.
+- [x] section-level layout override 구조를 구현합니다.
+- [x] grid layout descriptor를 구현합니다.
+- [x] custom `NSCollectionLayoutSection` provider API를 구현합니다.
+- [x] header/footer boundary supplementary item 생성 로직을 구현합니다.
+- [x] dynamic height row가 estimated size로 동작하게 합니다.
+- [x] layout adapter가 최신 section model을 조회하게 합니다.
 
 완료 기준:
 
-- [ ] plain/grouped/insetGrouped 예제가 표시됩니다.
-- [ ] header/footer가 layout에 포함됩니다.
-- [ ] dynamic height row가 잘리지 않습니다.
+- [x] plain/grouped/insetGrouped 예제가 표시됩니다.
+- [x] header/footer가 layout에 포함됩니다.
+- [x] dynamic height row가 잘리지 않습니다.
 
 ### 7. ReloadData Update Engine
 

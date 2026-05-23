@@ -72,5 +72,33 @@ final class LKSwiftUIAPITests: XCTestCase {
             AnyHashable("two"),
         ])
     }
+
+    #if canImport(UIKit)
+    func testListStyleModifierStoresStyle() {
+        let list = LKList {
+            LKSection(id: "section") {
+                LKRow(id: "item") {
+                    Text("Item")
+                }
+            }
+        }
+        .listKitStyle(.insetGrouped)
+
+        XCTAssertEqual(list.style, .insetGrouped)
+    }
+
+    func testSectionLayoutModifierStoresLayoutInModel() {
+        let list = LKList {
+            LKSection(id: "section") {
+                LKRow(id: "item") {
+                    Text("Item")
+                }
+            }
+            .sectionLayout(.grid(columns: 2, spacing: 8))
+        }
+
+        XCTAssertEqual(list.model.sections[0].layout, .grid(columns: 2, spacing: 8))
+    }
+    #endif
 }
 #endif
