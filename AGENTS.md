@@ -1680,18 +1680,18 @@ README의 첫 예시는 너무 단순한 todo list가 아니라, `onSelect`, `on
 
 ### 3. UIViewRepresentable Bridge
 
-- [ ] `LKCollectionViewRepresentable`을 구현합니다.
-- [ ] `makeUIView(context:)`에서 `UICollectionView`를 생성합니다.
-- [ ] `updateUIView(_:context:)`에서 새 model을 adapter에 전달합니다.
-- [ ] `Coordinator`를 생성하고 adapter를 소유하게 합니다.
-- [ ] SwiftUI environment 변경이 adapter update에 반영되게 합니다.
-- [ ] collection view background, indicator, inset 기본값을 정리합니다.
-- [ ] representable이 SwiftUI layout 안에서 높이/폭을 안정적으로 받는지 확인합니다.
+- [x] `LKCollectionViewRepresentable`을 구현합니다.
+- [x] `makeUIView(context:)`에서 `UICollectionView`를 생성합니다.
+- [x] `updateUIView(_:context:)`에서 새 model을 adapter에 전달합니다.
+- [x] `Coordinator`를 생성하고 adapter를 소유하게 합니다.
+- [x] SwiftUI environment 변경이 adapter update에 반영되게 합니다.
+- [x] collection view background, indicator, inset 기본값을 정리합니다.
+- [x] representable이 SwiftUI layout 안에서 높이/폭을 안정적으로 받는지 확인합니다.
 
 완료 기준:
 
-- [ ] SwiftUI view에서 빈 collection view가 렌더링됩니다.
-- [ ] data 변경 시 `updateUIView`가 adapter apply를 호출합니다.
+- [x] SwiftUI view에서 빈 collection view가 렌더링됩니다.
+- [x] data 변경 시 `updateUIView`가 adapter apply를 호출합니다.
 
 ### 4. Adapter 1차 구현
 

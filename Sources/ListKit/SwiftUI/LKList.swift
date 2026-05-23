@@ -6,8 +6,13 @@ public struct LKList<Content: View>: View {
     let events: LKListEvents
     let sections: [LKSection]
 
+    @ViewBuilder
     public var body: some View {
+        #if canImport(UIKit)
+        LKCollectionViewRepresentable(model: model)
+        #else
         EmptyView()
+        #endif
     }
 
     public init<Data, ID>(
