@@ -17,9 +17,15 @@ let package = Package(
             targets: ["ListKit"]
         ),
     ],
+    dependencies: [
+        .package(url: "https://github.com/ra1028/DifferenceKit.git", from: "1.3.0"),
+    ],
     targets: [
         .target(
-            name: "ListKit"
+            name: "ListKit",
+            dependencies: [
+                .product(name: "DifferenceKit", package: "DifferenceKit"),
+            ]
         ),
         .testTarget(
             name: "ListKitTests",

@@ -327,6 +327,160 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         XCTAssertEqual(adapter.currentModel.sections.first?.items.first?.id, AnyHashable("third-item"))
     }
 
+    func testDifferenceKitApplyReflectsInsertDeleteAndMove() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            updateEngine: .differenceKit
+        )
+        let oneItem = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [LKItemModel(id: "one")]),
+            ]
+        )
+        let twoItems = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "two"),
+                    LKItemModel(id: "one"),
+                ]),
+            ]
+        )
+        let noItems = LKListModel(sections: [LKSectionModel(id: "section")])
+
+        adapter.apply(oneItem)
+        XCTAssertEqual(adapter.collectionView(collectionView, numberOfItemsInSection: 0), 1)
+
+        adapter.apply(twoItems)
+        XCTAssertEqual(adapter.collectionView(collectionView, numberOfItemsInSection: 0), 2)
+        XCTAssertEqual(adapter.currentModel.sections.first?.items.first?.id, AnyHashable("two"))
+        XCTAssertGreaterThan(adapter.lastDifferenceKitChangesetCount, 0)
+
+        adapter.apply(noItems)
+        XCTAssertEqual(adapter.collectionView(collectionView, numberOfItemsInSection: 0), 0)
+    }
+
+    func testDifferenceKitUsesContentTokenForRowUpdates() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            updateEngine: .differenceKit
+        )
+        let first = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "item", contentToken: "old"),
+                ]),
+            ]
+        )
+        let changed = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "item", contentToken: "new"),
+                ]),
+            ]
+        )
+
+        adapter.apply(first)
+        adapter.apply(changed)
+
+        XCTAssertEqual(adapter.currentModel.sections.first?.items.first?.contentToken, AnyHashable("new"))
+        XCTAssertGreaterThan(adapter.lastDifferenceKitChangesetCount, 0)
+    }
+
+    func testDifferenceKitRestoresSelectionByItemIdentity() {
+        let collectionView = makeCollectionView()
+        collectionView.allowsSelection = true
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            updateEngine: .differenceKit
+        )
+        let original = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "selected"),
+                    LKItemModel(id: "other"),
+                ]),
+            ]
+        )
+        let reordered = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "other"),
+                    LKItemModel(id: "selected"),
+                ]),
+            ]
+        )
+
+        adapter.apply(original)
+        collectionView.selectItem(
+            at: IndexPath.lkIndexPath(item: 0, section: 0),
+            animated: false,
+            scrollPosition: []
+        )
+        adapter.apply(reordered)
+
+        XCTAssertEqual(collectionView.indexPathsForSelectedItems, [
+            IndexPath.lkIndexPath(item: 1, section: 0),
+        ])
+    }
+
+    func testDifferenceKitQueuedUpdateKeepsLastUpdateWhileApplyIsRunning() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            updateEngine: .differenceKit
+        )
+        let first = makeModel(sectionID: "first", itemID: "first-item")
+        let second = makeModel(sectionID: "second", itemID: "second-item")
+        let third = makeModel(sectionID: "third", itemID: "third-item")
+        var didReenter = false
+
+        adapter.differenceKitApplyCompletionHandler = {
+            guard didReenter == false else { return }
+            didReenter = true
+            adapter.apply(second)
+            adapter.apply(third)
+        }
+
+        adapter.apply(first)
+
+        XCTAssertEqual(adapter.currentModel.sections.first?.id, AnyHashable("third"))
+        XCTAssertEqual(adapter.currentModel.sections.first?.items.first?.id, AnyHashable("third-item"))
+    }
+
+    func testDifferenceKitFallsBackToReloadDataForLargeChangeset() {
+        let collectionView = makeCollectionView()
+        let window = makeVisibleWindow(for: collectionView)
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            updateEngine: .differenceKit
+        )
+        let original = LKListModel(
+            sections: [
+                LKSectionModel(
+                    id: "section",
+                    items: (0..<10).map { LKItemModel(id: "old-\($0)") }
+                ),
+            ]
+        )
+        let large = LKListModel(
+            sections: [
+                LKSectionModel(
+                    id: "section",
+                    items: (0..<800).map { LKItemModel(id: "new-\($0)") }
+                ),
+            ]
+        )
+
+        adapter.apply(original)
+        adapter.apply(large)
+
+        XCTAssertTrue(adapter.didFallbackFromDifferenceKit)
+        XCTAssertEqual(adapter.currentModel.sections.first?.items.count, 800)
+        _ = window
+    }
+
     func testDequeuedCellRendersSwiftUIContentConfiguration() {
         let collectionView = makeCollectionView()
         let adapter = LKCollectionViewAdapter(collectionView: collectionView)
@@ -498,6 +652,16 @@ final class LKCollectionViewAdapterTests: XCTestCase {
             frame: CGRect(x: 0, y: 0, width: 320, height: 480),
             collectionViewLayout: layout
         )
+    }
+
+    private func makeVisibleWindow(for collectionView: UICollectionView) -> UIWindow {
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        let viewController = UIViewController()
+        viewController.view = collectionView
+        window.rootViewController = viewController
+        window.makeKeyAndVisible()
+        collectionView.layoutIfNeeded()
+        return window
     }
 
     private func makeModel(

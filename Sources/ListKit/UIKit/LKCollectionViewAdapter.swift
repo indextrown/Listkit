@@ -1,4 +1,5 @@
 #if canImport(UIKit) && canImport(SwiftUI)
+import DifferenceKit
 import UIKit
 
 struct LKCellRegistrationKey: Hashable {
@@ -17,6 +18,8 @@ struct LKSupplementarySizeKey: Hashable {
     let indexPath: IndexPath
 }
 
+private let lkEmptySupplementaryReuseIdentifier = "ListKit.EmptySupplementaryView"
+
 @MainActor
 final class LKCollectionViewAdapter: NSObject {
     private weak var collectionView: UICollectionView?
@@ -27,6 +30,8 @@ final class LKCollectionViewAdapter: NSObject {
     private(set) var itemSizeStorage = [IndexPath: CGSize]()
     private(set) var supplementarySizeStorage = [LKSupplementarySizeKey: CGSize]()
     private(set) var lastReconfiguredItemIdentifiers = [LKItemIdentifier]()
+    private(set) var lastDifferenceKitChangesetCount = 0
+    private(set) var didFallbackFromDifferenceKit = false
     private var isUpdating = false
     private var queuedUpdate: LKListModel?
     private let updateEngine: LKUpdateEngine
@@ -34,6 +39,7 @@ final class LKCollectionViewAdapter: NSObject {
     private var diffableDataSource: UICollectionViewDiffableDataSource<LKSectionIdentifier, LKItemIdentifier>?
     var reloadDataHandler: (() -> Void)?
     var diffableApplyCompletionHandler: (() -> Void)?
+    var differenceKitApplyCompletionHandler: (() -> Void)?
     var focusRestorationHandler: (() -> Void)? {
         get { updateCoordinator.focusRestorationHandler }
         set { updateCoordinator.focusRestorationHandler = newValue }
@@ -69,7 +75,10 @@ final class LKCollectionViewAdapter: NSObject {
         switch updateEngine {
         case .diffableDataSource:
             applyDiffableDataSource(model)
-        case .reloadData, .differenceKit:
+        case .differenceKit:
+            applyDifferenceKit(model)
+            finishApply()
+        case .reloadData:
             updateCoordinator.apply(
                 model,
                 currentModel: currentModel,
@@ -104,6 +113,58 @@ final class LKCollectionViewAdapter: NSObject {
                 apply(queuedUpdate)
             }
         }
+    }
+
+    private func applyDifferenceKit(_ model: LKListModel) {
+        model.validateForApply()
+        let previousModel = currentModel
+        let selectedItemIDs = selectedItemIDs(in: collectionView, model: previousModel)
+        let source = previousModel.differenceKitSections
+        let target = model.differenceKitSections
+        let stagedChangeset = StagedChangeset(source: source, target: target)
+
+        lastDifferenceKitChangesetCount = stagedChangeset.reduce(0) { count, changeset in
+            count + changeset.changeCount
+        }
+        didFallbackFromDifferenceKit = false
+
+        registerReuseIdentifiersIfNeeded(from: model)
+
+        guard let collectionView, stagedChangeset.isEmpty == false else {
+            currentModel = model
+            collectionView?.reloadData()
+            restoreSelection(selectedItemIDs, in: collectionView, model: model)
+            restoreFocus(in: collectionView)
+            differenceKitApplyCompletionHandler?()
+            return
+        }
+
+        let interrupt: (Changeset<[LKDifferenceKitSection]>) -> Bool = { changeset in
+            let visibleCapacity = max(collectionView.numberOfSections, 1)
+                * max(collectionView.bounds.height > 0 ? Int(collectionView.bounds.height / 20) : 1, 1)
+            return changeset.changeCount > max(visibleCapacity * 8, 500)
+        }
+
+        collectionView.reload(
+            using: stagedChangeset,
+            interrupt: { [weak self] changeset in
+                let shouldInterrupt = interrupt(changeset)
+                if shouldInterrupt {
+                    self?.didFallbackFromDifferenceKit = true
+                }
+                return shouldInterrupt
+            },
+            setData: { [weak self] data in
+                self?.currentModel = LKListModel(differenceKitSections: data)
+            }
+        )
+
+        if didFallbackFromDifferenceKit {
+            currentModel = model
+        }
+        restoreSelection(selectedItemIDs, in: collectionView, model: currentModel)
+        restoreFocus(in: collectionView)
+        differenceKitApplyCompletionHandler?()
     }
 
     func recordItemSize(_ size: CGSize, at indexPath: IndexPath) {
@@ -273,7 +334,16 @@ final class LKCollectionViewAdapter: NSObject {
         }
 
         guard let supplementary = currentModel.supplementary(kind: supplementaryKind, at: indexPath) else {
-            return UICollectionReusableView()
+            collectionView.register(
+                UICollectionReusableView.self,
+                forSupplementaryViewOfKind: kind,
+                withReuseIdentifier: lkEmptySupplementaryReuseIdentifier
+            )
+            return collectionView.dequeueReusableSupplementaryView(
+                ofKind: kind,
+                withReuseIdentifier: lkEmptySupplementaryReuseIdentifier,
+                for: indexPath
+            )
         }
 
         let view = collectionView.dequeueReusableSupplementaryView(

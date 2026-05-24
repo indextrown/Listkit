@@ -1789,21 +1789,21 @@ README의 첫 예시는 너무 단순한 todo list가 아니라, `onSelect`, `on
 
 ### 9. DifferenceKit Engine
 
-- [ ] DifferenceKit dependency를 별도 target 또는 optional layer로 분리합니다.
-- [ ] `LKSectionModel` adapter가 `DifferentiableSection`에 대응되게 합니다.
-- [ ] `LKItemModel` adapter가 `Differentiable`에 대응되게 합니다.
-- [ ] `differenceIdentifier`는 stable id를 사용합니다.
-- [ ] `isContentEqual`은 content token을 사용합니다.
-- [ ] staged changeset apply 순서를 구현합니다.
-- [ ] staged update 중 내부 snapshot을 단계별로 갱신합니다.
-- [ ] large changeset interrupt/fallback 정책을 구현합니다.
-- [ ] failure 시 `reloadData` fallback을 제공합니다.
+- [x] DifferenceKit dependency를 별도 target 또는 optional layer로 분리합니다.
+- [x] `LKSectionModel` adapter가 `DifferentiableSection`에 대응되게 합니다.
+- [x] `LKItemModel` adapter가 `Differentiable`에 대응되게 합니다.
+- [x] `differenceIdentifier`는 stable id를 사용합니다.
+- [x] `isContentEqual`은 content token을 사용합니다.
+- [x] staged changeset apply 순서를 구현합니다.
+- [x] staged update 중 내부 snapshot을 단계별로 갱신합니다.
+- [x] large changeset interrupt/fallback 정책을 구현합니다.
+- [x] failure 시 `reloadData` fallback을 제공합니다.
 
 완료 기준:
 
-- [ ] DifferenceKit engine 선택 시 insert/delete/move가 동작합니다.
-- [ ] diffable engine과 동일한 public API를 사용합니다.
-- [ ] DifferenceKit dependency가 core API를 오염시키지 않습니다.
+- [x] DifferenceKit engine 선택 시 insert/delete/move가 동작합니다.
+- [x] diffable engine과 동일한 public API를 사용합니다.
+- [x] DifferenceKit dependency가 core API를 오염시키지 않습니다.
 
 ### 10. Event Routing
 
