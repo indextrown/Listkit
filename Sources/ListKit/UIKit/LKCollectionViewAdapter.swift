@@ -25,6 +25,7 @@ final class LKCollectionViewAdapter: NSObject {
     private weak var collectionView: UICollectionView?
     private(set) var currentModel: LKListModel
     private var listEvents: LKListEvents
+    private var selectionConfiguration: LKSelectionConfiguration
     private(set) var registeredCellKeys = Set<LKCellRegistrationKey>()
     private(set) var registeredHeaderKeys = Set<LKSupplementaryRegistrationKey>()
     private(set) var registeredFooterKeys = Set<LKSupplementaryRegistrationKey>()
@@ -50,15 +51,18 @@ final class LKCollectionViewAdapter: NSObject {
         collectionView: UICollectionView,
         model: LKListModel = .empty,
         listEvents: LKListEvents = LKListEvents(),
+        selectionConfiguration: LKSelectionConfiguration = LKSelectionConfiguration(),
         updateEngine: LKUpdateEngine = .reloadData
     ) {
         self.collectionView = collectionView
         self.currentModel = model
         self.listEvents = listEvents
+        self.selectionConfiguration = selectionConfiguration
         self.updateEngine = updateEngine
         self.updateCoordinator = LKUpdateCoordinator(engine: updateEngine)
         super.init()
         collectionView.delegate = self
+        configureSelectionBehavior(on: collectionView)
         if updateEngine == .diffableDataSource {
             configureDiffableDataSource(on: collectionView)
         } else {
@@ -67,10 +71,18 @@ final class LKCollectionViewAdapter: NSObject {
         registerReuseIdentifiersIfNeeded(from: model)
     }
 
-    func apply(_ model: LKListModel, listEvents: LKListEvents? = nil) {
+    func apply(
+        _ model: LKListModel,
+        listEvents: LKListEvents? = nil,
+        selectionConfiguration: LKSelectionConfiguration? = nil
+    ) {
         if let listEvents {
             self.listEvents = listEvents
         }
+        if let selectionConfiguration {
+            self.selectionConfiguration = selectionConfiguration
+        }
+        configureSelectionBehavior(on: collectionView)
 
         guard isUpdating == false else {
             queuedUpdate = model
@@ -84,6 +96,7 @@ final class LKCollectionViewAdapter: NSObject {
             applyDiffableDataSource(model)
         case .differenceKit:
             applyDifferenceKit(model)
+            synchronizeSelectionAfterApply(model: currentModel)
             finishApply()
         case .reloadData:
             updateCoordinator.apply(
@@ -103,6 +116,7 @@ final class LKCollectionViewAdapter: NSObject {
                     }
                 }
             )
+            synchronizeSelectionAfterApply(model: currentModel)
             finishApply()
         }
     }
@@ -141,6 +155,7 @@ final class LKCollectionViewAdapter: NSObject {
             currentModel = model
             collectionView?.reloadData()
             restoreSelection(selectedItemIDs, in: collectionView, model: model)
+            synchronizeSelectionAfterApply(model: model)
             restoreFocus(in: collectionView)
             differenceKitApplyCompletionHandler?()
             return
@@ -300,6 +315,7 @@ final class LKCollectionViewAdapter: NSObject {
         diffableDataSource?.apply(snapshot, animatingDifferences: shouldAnimate) { [weak self] in
             guard let self else { return }
             self.restoreSelection(selectedItemIDs, in: self.collectionView, model: model)
+            self.synchronizeSelectionAfterApply(model: model)
             self.restoreFocus(in: self.collectionView)
             self.diffableApplyCompletionHandler?()
             self.finishApply()
@@ -413,6 +429,109 @@ final class LKCollectionViewAdapter: NSObject {
                 continue
             }
             collectionView.selectItem(at: indexPath, animated: false, scrollPosition: [])
+        }
+    }
+
+    private func configureSelectionBehavior(on collectionView: UICollectionView?) {
+        guard let collectionView else {
+            return
+        }
+
+        switch selectionConfiguration.mode {
+        case .none:
+            collectionView.allowsSelection = false
+            collectionView.allowsMultipleSelection = false
+        case .single:
+            collectionView.allowsSelection = true
+            collectionView.allowsMultipleSelection = false
+        case .multiple:
+            collectionView.allowsSelection = true
+            collectionView.allowsMultipleSelection = true
+        }
+    }
+
+    private func synchronizeSelectionAfterApply(model: LKListModel) {
+        guard let collectionView else {
+            return
+        }
+
+        if selectionConfiguration.mode == .none {
+            clearSelection(in: collectionView)
+            if selectionConfiguration.hasBinding {
+                selectionConfiguration.setSelectedIDs?([])
+            }
+            return
+        }
+
+        guard selectionConfiguration.hasBinding else {
+            return
+        }
+
+        let selectedIDs = normalizedSelectionIDs(selectionConfiguration.selectedIDs(), model: model)
+        applySelection(selectedIDs, to: collectionView, model: model)
+        selectionConfiguration.setSelectedIDs?(selectedIDs)
+    }
+
+    private func updateSelectionBindingAfterUserSelect(itemID: AnyHashable) {
+        guard selectionConfiguration.hasBinding else {
+            return
+        }
+
+        let currentIDs = normalizedSelectionIDs(selectionConfiguration.selectedIDs(), model: currentModel)
+        let selectedIDs: [AnyHashable]
+        switch selectionConfiguration.mode {
+        case .none:
+            selectedIDs = []
+        case .single:
+            selectedIDs = [itemID]
+        case .multiple:
+            selectedIDs = currentIDs.contains(itemID) ? currentIDs : currentIDs + [itemID]
+        }
+        selectionConfiguration.setSelectedIDs?(normalizedSelectionIDs(selectedIDs, model: currentModel))
+    }
+
+    private func updateSelectionBindingAfterUserDeselect(itemID: AnyHashable) {
+        guard selectionConfiguration.hasBinding else {
+            return
+        }
+
+        let selectedIDs = normalizedSelectionIDs(
+            selectionConfiguration.selectedIDs().filter { $0 != itemID },
+            model: currentModel
+        )
+        selectionConfiguration.setSelectedIDs?(selectedIDs)
+    }
+
+    private func normalizedSelectionIDs(_ ids: [AnyHashable], model: LKListModel) -> [AnyHashable] {
+        var seen = Set<AnyHashable>()
+        var normalized = [AnyHashable]()
+
+        for id in ids where seen.insert(id).inserted && indexPath(forItemID: id, in: model) != nil {
+            normalized.append(id)
+            if selectionConfiguration.mode == .single {
+                break
+            }
+        }
+        return normalized
+    }
+
+    private func applySelection(
+        _ selectedIDs: [AnyHashable],
+        to collectionView: UICollectionView,
+        model: LKListModel
+    ) {
+        clearSelection(in: collectionView)
+        for id in selectedIDs {
+            guard let indexPath = indexPath(forItemID: id, in: model) else {
+                continue
+            }
+            collectionView.selectItem(at: indexPath, animated: false, scrollPosition: [])
+        }
+    }
+
+    private func clearSelection(in collectionView: UICollectionView) {
+        collectionView.indexPathsForSelectedItems?.forEach {
+            collectionView.deselectItem(at: $0, animated: false)
         }
     }
 
@@ -534,6 +653,7 @@ extension LKCollectionViewAdapter: UICollectionViewDelegate {
         guard let sources = itemEventSources(at: indexPath) else {
             return
         }
+        updateSelectionBindingAfterUserSelect(itemID: sources.context.id)
         if let handler = sources.rowEvents.didSelect
             ?? sources.sectionEvents.didSelect
             ?? listEvents.didSelect {
@@ -555,6 +675,7 @@ extension LKCollectionViewAdapter: UICollectionViewDelegate {
         guard let sources = itemEventSources(at: indexPath) else {
             return
         }
+        updateSelectionBindingAfterUserDeselect(itemID: sources.context.id)
         if let handler = sources.rowEvents.didDeselect
             ?? sources.sectionEvents.didDeselect
             ?? listEvents.didDeselect {

@@ -122,6 +122,33 @@ final class LKSwiftUIAPITests: XCTestCase {
         XCTAssertNotNil(list.model.sections[0].footerEvents.willDisplay)
         XCTAssertNotNil(list.model.sections[0].footerEvents.didEndDisplaying)
     }
+
+    func testSelectionModifiersStoreSelectionConfiguration() {
+        var selectedID: Int?
+        var selectedIDs = Set<Int>()
+
+        let singleSelection = Binding<Int?>(
+            get: { selectedID },
+            set: { selectedID = $0 }
+        )
+        let multipleSelection = Binding<Set<Int>>(
+            get: { selectedIDs },
+            set: { selectedIDs = $0 }
+        )
+
+        let singleList = LKList([Message(id: 1, title: "One")], id: \.id) { message in
+            Text(message.title)
+        }
+        .selection(singleSelection)
+        let multipleList = LKList([Message(id: 1, title: "One")], id: \.id) { message in
+            Text(message.title)
+        }
+        .selection(multipleSelection)
+        .selectionMode(.none)
+
+        XCTAssertEqual(singleList.selectionConfiguration.mode, .single)
+        XCTAssertEqual(multipleList.selectionConfiguration.mode, .none)
+    }
     #endif
 }
 #endif

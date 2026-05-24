@@ -384,6 +384,147 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         XCTAssertEqual(contexts.map(\.indexPath), [indexPath, indexPath])
     }
 
+    func testSingleSelectionBindingSynchronizesExternalAndUserSelection() {
+        let collectionView = makeCollectionView()
+        var selectedID: String? = "two"
+        let selection = LKSelectionConfiguration(
+            selection: Binding<String?>(
+                get: { selectedID },
+                set: { selectedID = $0 }
+            )
+        )
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            selectionConfiguration: selection
+        )
+        let model = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "one"),
+                    LKItemModel(id: "two"),
+                ]),
+            ]
+        )
+
+        adapter.apply(model, selectionConfiguration: selection)
+
+        XCTAssertTrue(collectionView.allowsSelection)
+        XCTAssertFalse(collectionView.allowsMultipleSelection)
+        XCTAssertEqual(collectionView.indexPathsForSelectedItems, [
+            IndexPath.lkIndexPath(item: 1, section: 0),
+        ])
+
+        adapter.collectionView(
+            collectionView,
+            didSelectItemAt: IndexPath.lkIndexPath(item: 0, section: 0)
+        )
+
+        XCTAssertEqual(selectedID, "one")
+    }
+
+    func testMultipleSelectionBindingSynchronizesAndPrunesRemovedIDs() {
+        let collectionView = makeCollectionView()
+        var selectedIDs: Set<String> = ["one", "missing"]
+        let selection = LKSelectionConfiguration(
+            selection: Binding<Set<String>>(
+                get: { selectedIDs },
+                set: { selectedIDs = $0 }
+            )
+        )
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            selectionConfiguration: selection
+        )
+        let model = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "one"),
+                    LKItemModel(id: "two"),
+                ]),
+            ]
+        )
+
+        adapter.apply(model, selectionConfiguration: selection)
+
+        XCTAssertTrue(collectionView.allowsMultipleSelection)
+        XCTAssertEqual(selectedIDs, ["one"])
+        XCTAssertEqual(collectionView.indexPathsForSelectedItems, [
+            IndexPath.lkIndexPath(item: 0, section: 0),
+        ])
+
+        adapter.collectionView(
+            collectionView,
+            didSelectItemAt: IndexPath.lkIndexPath(item: 1, section: 0)
+        )
+        XCTAssertEqual(selectedIDs, ["one", "two"])
+
+        adapter.apply(
+            LKListModel(sections: [LKSectionModel(id: "section")]),
+            selectionConfiguration: selection
+        )
+        XCTAssertTrue(selectedIDs.isEmpty)
+        XCTAssertTrue(collectionView.indexPathsForSelectedItems?.isEmpty ?? true)
+    }
+
+    func testSelectionModeNoneDisablesSelectionAndClearsBinding() {
+        let collectionView = makeCollectionView()
+        var selectedID: String? = "one"
+        let selection = LKSelectionConfiguration(
+            selection: Binding<String?>(
+                get: { selectedID },
+                set: { selectedID = $0 }
+            )
+        )
+        .replacing(mode: .none)
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            selectionConfiguration: selection
+        )
+
+        adapter.apply(
+            LKListModel(
+                sections: [
+                    LKSectionModel(id: "section", items: [LKItemModel(id: "one")]),
+                ]
+            ),
+            selectionConfiguration: selection
+        )
+
+        XCTAssertFalse(collectionView.allowsSelection)
+        XCTAssertFalse(collectionView.allowsMultipleSelection)
+        XCTAssertNil(selectedID)
+    }
+
+    func testRejectedSelectionDoesNotMutateSelectionBinding() {
+        let collectionView = makeCollectionView()
+        var selectedID: String?
+        var item = LKItemModel(id: "blocked")
+        item.events.shouldSelect = { _ in false }
+        let selection = LKSelectionConfiguration(
+            selection: Binding<String?>(
+                get: { selectedID },
+                set: { selectedID = $0 }
+            )
+        )
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            selectionConfiguration: selection
+        )
+
+        adapter.apply(
+            LKListModel(sections: [LKSectionModel(id: "section", items: [item])]),
+            selectionConfiguration: selection
+        )
+
+        XCTAssertFalse(
+            adapter.collectionView(
+                collectionView,
+                shouldSelectItemAt: IndexPath.lkIndexPath(item: 0, section: 0)
+            )
+        )
+        XCTAssertNil(selectedID)
+    }
+
     func testDiffableDataSourceApplyReflectsInsertDeleteAndMove() async {
         let collectionView = makeCollectionView()
         let adapter = LKCollectionViewAdapter(

@@ -5,23 +5,32 @@ import UIKit
 public struct LKCollectionViewRepresentable: UIViewRepresentable {
     let model: LKListModel
     let listEvents: LKListEvents
+    let selectionConfiguration: LKSelectionConfiguration
     let style: LKListStyle
     let updateEngine: LKUpdateEngine
 
     init(
         model: LKListModel,
         listEvents: LKListEvents = LKListEvents(),
+        selectionConfiguration: LKSelectionConfiguration = LKSelectionConfiguration(),
         style: LKListStyle = .plain,
         updateEngine: LKUpdateEngine = .reloadData
     ) {
         self.model = model
         self.listEvents = listEvents
+        self.selectionConfiguration = selectionConfiguration
         self.style = style
         self.updateEngine = updateEngine
     }
 
     public func makeCoordinator() -> Coordinator {
-        Coordinator(model: model, listEvents: listEvents, style: style, updateEngine: updateEngine)
+        Coordinator(
+            model: model,
+            listEvents: listEvents,
+            selectionConfiguration: selectionConfiguration,
+            style: style,
+            updateEngine: updateEngine
+        )
     }
 
     public func makeUIView(context: Context) -> UICollectionView {
@@ -42,6 +51,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
         context.coordinator.apply(
             model,
             listEvents: listEvents,
+            selectionConfiguration: selectionConfiguration,
             style: style,
             updateEngine: updateEngine,
             to: collectionView
@@ -52,13 +62,21 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
         private var adapter: LKCollectionViewAdapter?
         private var pendingModel: LKListModel
         private var pendingListEvents: LKListEvents
+        private var pendingSelectionConfiguration: LKSelectionConfiguration
         private var pendingStyle: LKListStyle
         private var pendingUpdateEngine: LKUpdateEngine
         private var layoutSignature: String
 
-        init(model: LKListModel, listEvents: LKListEvents, style: LKListStyle, updateEngine: LKUpdateEngine) {
+        init(
+            model: LKListModel,
+            listEvents: LKListEvents,
+            selectionConfiguration: LKSelectionConfiguration,
+            style: LKListStyle,
+            updateEngine: LKUpdateEngine
+        ) {
             self.pendingModel = model
             self.pendingListEvents = listEvents
+            self.pendingSelectionConfiguration = selectionConfiguration
             self.pendingStyle = style
             self.pendingUpdateEngine = updateEngine
             self.layoutSignature = ""
@@ -73,6 +91,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
                 collectionView: collectionView,
                 model: pendingModel,
                 listEvents: pendingListEvents,
+                selectionConfiguration: pendingSelectionConfiguration,
                 updateEngine: pendingUpdateEngine
             )
         }
@@ -81,16 +100,22 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
         func apply(
             _ model: LKListModel,
             listEvents: LKListEvents,
+            selectionConfiguration: LKSelectionConfiguration,
             style: LKListStyle,
             updateEngine: LKUpdateEngine,
             to collectionView: UICollectionView
         ) {
             pendingModel = model
             pendingListEvents = listEvents
+            pendingSelectionConfiguration = selectionConfiguration
             pendingStyle = style
             pendingUpdateEngine = updateEngine
             updateLayoutIfNeeded(model: model, style: style, collectionView: collectionView)
-            adapter?.apply(model, listEvents: listEvents)
+            adapter?.apply(
+                model,
+                listEvents: listEvents,
+                selectionConfiguration: selectionConfiguration
+            )
         }
 
         @MainActor

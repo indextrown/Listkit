@@ -5,6 +5,7 @@ import SwiftUI
 public struct LKList<Content: View>: View {
     let model: LKListModel
     let events: LKListEvents
+    let selectionConfiguration: LKSelectionConfiguration
     let sections: [LKSection]
     #if canImport(UIKit)
     let style: LKListStyle
@@ -17,6 +18,7 @@ public struct LKList<Content: View>: View {
         LKCollectionViewRepresentable(
             model: model,
             listEvents: events,
+            selectionConfiguration: selectionConfiguration,
             style: style,
             updateEngine: updateEngine
         )
@@ -47,6 +49,7 @@ public struct LKList<Content: View>: View {
             ]
         )
         self.events = LKListEvents()
+        self.selectionConfiguration = LKSelectionConfiguration()
         self.sections = []
         #if canImport(UIKit)
         self.style = .plain
@@ -59,6 +62,7 @@ public struct LKList<Content: View>: View {
         self.sections = sections
         self.model = LKListModel(sections: sections.map(\.model))
         self.events = LKListEvents()
+        self.selectionConfiguration = LKSelectionConfiguration()
         #if canImport(UIKit)
         self.style = .plain
         self.updateEngine = .reloadData
@@ -69,25 +73,53 @@ public struct LKList<Content: View>: View {
     private init(
         model: LKListModel,
         events: LKListEvents,
+        selectionConfiguration: LKSelectionConfiguration,
         sections: [LKSection],
         style: LKListStyle,
         updateEngine: LKUpdateEngine
     ) {
         self.model = model
         self.events = events
+        self.selectionConfiguration = selectionConfiguration
         self.sections = sections
         self.style = style
         self.updateEngine = updateEngine
     }
 
     public func listKitStyle(_ style: LKListStyle) -> Self {
-        Self(model: model, events: events, sections: sections, style: style, updateEngine: updateEngine)
+        Self(
+            model: model,
+            events: events,
+            selectionConfiguration: selectionConfiguration,
+            sections: sections,
+            style: style,
+            updateEngine: updateEngine
+        )
     }
 
     public func updateEngine(_ updateEngine: LKUpdateEngine) -> Self {
-        Self(model: model, events: events, sections: sections, style: style, updateEngine: updateEngine)
+        Self(
+            model: model,
+            events: events,
+            selectionConfiguration: selectionConfiguration,
+            sections: sections,
+            style: style,
+            updateEngine: updateEngine
+        )
     }
     #endif
+
+    public func selection<ID: Hashable>(_ selection: Binding<ID?>) -> Self {
+        replacing(selectionConfiguration: LKSelectionConfiguration(selection: selection))
+    }
+
+    public func selection<ID: Hashable>(_ selection: Binding<Set<ID>>) -> Self {
+        replacing(selectionConfiguration: LKSelectionConfiguration(selection: selection))
+    }
+
+    public func selectionMode(_ mode: LKSelectionMode) -> Self {
+        replacing(selectionConfiguration: selectionConfiguration.replacing(mode: mode))
+    }
 
     public func onShouldSelect(_ handler: @escaping (LKAnyItemContext) -> Bool) -> Self {
         var events = events
@@ -145,7 +177,29 @@ public struct LKList<Content: View>: View {
 
     private func replacing(events: LKListEvents) -> Self {
         #if canImport(UIKit)
-        Self(model: model, events: events, sections: sections, style: style, updateEngine: updateEngine)
+        Self(
+            model: model,
+            events: events,
+            selectionConfiguration: selectionConfiguration,
+            sections: sections,
+            style: style,
+            updateEngine: updateEngine
+        )
+        #else
+        self
+        #endif
+    }
+
+    private func replacing(selectionConfiguration: LKSelectionConfiguration) -> Self {
+        #if canImport(UIKit)
+        Self(
+            model: model,
+            events: events,
+            selectionConfiguration: selectionConfiguration,
+            sections: sections,
+            style: style,
+            updateEngine: updateEngine
+        )
         #else
         self
         #endif

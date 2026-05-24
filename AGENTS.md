@@ -1847,21 +1847,21 @@ README의 첫 예시는 너무 단순한 todo list가 아니라, `onSelect`, `on
 
 ### 12. Selection
 
-- [ ] `LKSelectionMode.none`을 구현합니다.
-- [ ] `LKSelectionMode.single`을 구현합니다.
-- [ ] `LKSelectionMode.multiple`을 구현합니다.
-- [ ] single selection binding API를 구현합니다.
-- [ ] multiple selection binding API를 구현합니다.
-- [ ] external binding 변경이 collection view selection에 반영되게 합니다.
-- [ ] user selection이 binding에 반영되게 합니다.
-- [ ] `shouldSelect`가 false이면 binding이 변하지 않게 합니다.
-- [ ] data update 후 사라진 id를 selection에서 제거합니다.
-- [ ] selection environment 값을 cell content에 전달합니다.
+- [x] `LKSelectionMode.none`을 구현합니다.
+- [x] `LKSelectionMode.single`을 구현합니다.
+- [x] `LKSelectionMode.multiple`을 구현합니다.
+- [x] single selection binding API를 구현합니다.
+- [x] multiple selection binding API를 구현합니다.
+- [x] external binding 변경이 collection view selection에 반영되게 합니다.
+- [x] user selection이 binding에 반영되게 합니다.
+- [x] `shouldSelect`가 false이면 binding이 변하지 않게 합니다.
+- [x] data update 후 사라진 id를 selection에서 제거합니다.
+- [x] selection environment 값을 cell content에 전달합니다.
 
 완료 기준:
 
-- [ ] single/multiple selection 테스트가 통과합니다.
-- [ ] update 후 selection restore 테스트가 통과합니다.
+- [x] single/multiple selection 테스트가 통과합니다.
+- [x] update 후 selection restore 테스트가 통과합니다.
 
 ### 13. Scroll Delegate와 편의 기능
 
