@@ -644,6 +644,72 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         XCTAssertEqual(reachEndCount, 3)
     }
 
+    func testRefreshControlIsInstalledAndUsesTint() {
+        let collectionView = makeCollectionView()
+        var refreshConfiguration = LKRefreshConfiguration()
+        refreshConfiguration.action = {}
+        refreshConfiguration.tintColor = .systemBlue
+
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            refreshConfiguration: refreshConfiguration
+        )
+
+        XCTAssertNotNil(collectionView.refreshControl)
+        XCTAssertEqual(collectionView.refreshControl?.tintColor, .systemBlue)
+
+        adapter.apply(makeModel(), refreshConfiguration: LKRefreshConfiguration())
+        XCTAssertNil(collectionView.refreshControl)
+    }
+
+    func testRefreshControlRunsAsyncActionAndEndsRefreshing() async {
+        let collectionView = makeCollectionView()
+        var refreshConfiguration = LKRefreshConfiguration()
+        let didRefresh = expectation(description: "runs refresh action")
+        refreshConfiguration.action = {
+            didRefresh.fulfill()
+        }
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            refreshConfiguration: refreshConfiguration
+        )
+
+        collectionView.refreshControl?.beginRefreshing()
+        if let refreshControl = collectionView.refreshControl {
+            adapter.refreshControlValueChanged(refreshControl)
+        }
+
+        await fulfillment(of: [didRefresh], timeout: 2.0)
+        await Task.yield()
+
+        XCTAssertFalse(collectionView.refreshControl?.isRefreshing ?? true)
+    }
+
+    func testRefreshControlIgnoresDuplicateTriggersWhileRunning() async {
+        let collectionView = makeCollectionView()
+        var refreshConfiguration = LKRefreshConfiguration()
+        var continuation: CheckedContinuation<Void, Never>?
+        var refreshCount = 0
+        refreshConfiguration.action = {
+            refreshCount += 1
+            await withCheckedContinuation { continuation = $0 }
+        }
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            refreshConfiguration: refreshConfiguration
+        )
+
+        if let refreshControl = collectionView.refreshControl {
+            adapter.refreshControlValueChanged(refreshControl)
+            adapter.refreshControlValueChanged(refreshControl)
+        }
+        await Task.yield()
+
+        XCTAssertEqual(refreshCount, 1)
+        continuation?.resume()
+        await Task.yield()
+    }
+
     func testDiffableDataSourceApplyReflectsInsertDeleteAndMove() async {
         let collectionView = makeCollectionView()
         let adapter = LKCollectionViewAdapter(

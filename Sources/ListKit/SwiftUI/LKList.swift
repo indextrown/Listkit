@@ -10,6 +10,7 @@ public struct LKList<Content: View>: View {
     let events: LKListEvents
     let selectionConfiguration: LKSelectionConfiguration
     let scrollConfiguration: LKScrollConfiguration
+    let refreshConfiguration: LKRefreshConfiguration
     let sections: [LKSection]
     #if canImport(UIKit)
     let style: LKListStyle
@@ -24,6 +25,7 @@ public struct LKList<Content: View>: View {
             listEvents: events,
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
+            refreshConfiguration: refreshConfiguration,
             style: style,
             updateEngine: updateEngine
         )
@@ -56,6 +58,7 @@ public struct LKList<Content: View>: View {
         self.events = LKListEvents()
         self.selectionConfiguration = LKSelectionConfiguration()
         self.scrollConfiguration = LKScrollConfiguration()
+        self.refreshConfiguration = LKRefreshConfiguration()
         self.sections = []
         #if canImport(UIKit)
         self.style = .plain
@@ -70,6 +73,7 @@ public struct LKList<Content: View>: View {
         self.events = LKListEvents()
         self.selectionConfiguration = LKSelectionConfiguration()
         self.scrollConfiguration = LKScrollConfiguration()
+        self.refreshConfiguration = LKRefreshConfiguration()
         #if canImport(UIKit)
         self.style = .plain
         self.updateEngine = .reloadData
@@ -82,6 +86,7 @@ public struct LKList<Content: View>: View {
         events: LKListEvents,
         selectionConfiguration: LKSelectionConfiguration,
         scrollConfiguration: LKScrollConfiguration,
+        refreshConfiguration: LKRefreshConfiguration,
         sections: [LKSection],
         style: LKListStyle,
         updateEngine: LKUpdateEngine
@@ -90,6 +95,7 @@ public struct LKList<Content: View>: View {
         self.events = events
         self.selectionConfiguration = selectionConfiguration
         self.scrollConfiguration = scrollConfiguration
+        self.refreshConfiguration = refreshConfiguration
         self.sections = sections
         self.style = style
         self.updateEngine = updateEngine
@@ -101,6 +107,7 @@ public struct LKList<Content: View>: View {
             events: events,
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
+            refreshConfiguration: refreshConfiguration,
             sections: sections,
             style: style,
             updateEngine: updateEngine
@@ -113,6 +120,7 @@ public struct LKList<Content: View>: View {
             events: events,
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
+            refreshConfiguration: refreshConfiguration,
             sections: sections,
             style: style,
             updateEngine: updateEngine
@@ -131,6 +139,20 @@ public struct LKList<Content: View>: View {
     public func selectionMode(_ mode: LKSelectionMode) -> Self {
         replacing(selectionConfiguration: selectionConfiguration.replacing(mode: mode))
     }
+
+    public func refreshable(action: @escaping @MainActor () async -> Void) -> Self {
+        var refreshConfiguration = refreshConfiguration
+        refreshConfiguration.action = action
+        return replacing(refreshConfiguration: refreshConfiguration)
+    }
+
+    #if canImport(UIKit)
+    public func refreshControlTint(_ color: UIColor) -> Self {
+        var refreshConfiguration = refreshConfiguration
+        refreshConfiguration.tintColor = color
+        return replacing(refreshConfiguration: refreshConfiguration)
+    }
+    #endif
 
     public func onScroll(_ handler: @escaping (LKScrollContext) -> Void) -> Self {
         var events = events
@@ -269,6 +291,7 @@ public struct LKList<Content: View>: View {
             events: events,
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
+            refreshConfiguration: refreshConfiguration,
             sections: sections,
             style: style,
             updateEngine: updateEngine
@@ -285,6 +308,7 @@ public struct LKList<Content: View>: View {
             events: events,
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
+            refreshConfiguration: refreshConfiguration,
             sections: sections,
             style: style,
             updateEngine: updateEngine
@@ -301,6 +325,7 @@ public struct LKList<Content: View>: View {
             events: events,
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
+            refreshConfiguration: refreshConfiguration,
             sections: sections,
             style: style,
             updateEngine: updateEngine
@@ -317,6 +342,24 @@ public struct LKList<Content: View>: View {
             events: events,
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
+            refreshConfiguration: refreshConfiguration,
+            sections: sections,
+            style: style,
+            updateEngine: updateEngine
+        )
+        #else
+        self
+        #endif
+    }
+
+    private func replacing(refreshConfiguration: LKRefreshConfiguration) -> Self {
+        #if canImport(UIKit)
+        Self(
+            model: model,
+            events: events,
+            selectionConfiguration: selectionConfiguration,
+            scrollConfiguration: scrollConfiguration,
+            refreshConfiguration: refreshConfiguration,
             sections: sections,
             style: style,
             updateEngine: updateEngine

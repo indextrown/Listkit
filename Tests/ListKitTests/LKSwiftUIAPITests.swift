@@ -184,6 +184,33 @@ final class LKSwiftUIAPITests: XCTestCase {
         XCTAssertEqual(list.scrollConfiguration.contentInsets, LKEdgeInsets(top: 1, left: 2, bottom: 3, right: 4))
         XCTAssertEqual(list.scrollConfiguration.reachEndThreshold, .points(120))
     }
+
+    func testRefreshModifiersStoreConfiguration() {
+        let list = LKList([Message(id: 1, title: "One")], id: \.id) { message in
+            Text(message.title)
+        }
+        .refreshable {}
+        .refreshControlTint(.systemBlue)
+
+        XCTAssertTrue(list.refreshConfiguration.isEnabled)
+        XCTAssertEqual(list.refreshConfiguration.tintColor, .systemBlue)
+    }
+
+    func testSwiftUISearchableComposesWithList() {
+        var query = ""
+        let queryBinding = Binding<String>(
+            get: { query },
+            set: { query = $0 }
+        )
+
+        let view = LKList([Message(id: 1, title: "One")], id: \.id) { message in
+            Text(message.title)
+        }
+        .searchable(text: queryBinding)
+
+        _ = view
+        XCTAssertEqual(query, "")
+    }
     #endif
 }
 #endif

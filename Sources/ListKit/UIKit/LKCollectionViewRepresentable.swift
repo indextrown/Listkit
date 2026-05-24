@@ -7,6 +7,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
     let listEvents: LKListEvents
     let selectionConfiguration: LKSelectionConfiguration
     let scrollConfiguration: LKScrollConfiguration
+    let refreshConfiguration: LKRefreshConfiguration
     let style: LKListStyle
     let updateEngine: LKUpdateEngine
 
@@ -15,6 +16,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
         listEvents: LKListEvents = LKListEvents(),
         selectionConfiguration: LKSelectionConfiguration = LKSelectionConfiguration(),
         scrollConfiguration: LKScrollConfiguration = LKScrollConfiguration(),
+        refreshConfiguration: LKRefreshConfiguration = LKRefreshConfiguration(),
         style: LKListStyle = .plain,
         updateEngine: LKUpdateEngine = .reloadData
     ) {
@@ -22,6 +24,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
         self.listEvents = listEvents
         self.selectionConfiguration = selectionConfiguration
         self.scrollConfiguration = scrollConfiguration
+        self.refreshConfiguration = refreshConfiguration
         self.style = style
         self.updateEngine = updateEngine
     }
@@ -32,6 +35,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
             listEvents: listEvents,
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
+            refreshConfiguration: refreshConfiguration,
             style: style,
             updateEngine: updateEngine
         )
@@ -57,6 +61,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
             listEvents: listEvents,
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
+            refreshConfiguration: refreshConfiguration,
             style: style,
             updateEngine: updateEngine,
             to: collectionView
@@ -69,6 +74,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
         private var pendingListEvents: LKListEvents
         private var pendingSelectionConfiguration: LKSelectionConfiguration
         private var pendingScrollConfiguration: LKScrollConfiguration
+        private var pendingRefreshConfiguration: LKRefreshConfiguration
         private var pendingStyle: LKListStyle
         private var pendingUpdateEngine: LKUpdateEngine
         private var layoutSignature: String
@@ -78,6 +84,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
             listEvents: LKListEvents,
             selectionConfiguration: LKSelectionConfiguration,
             scrollConfiguration: LKScrollConfiguration,
+            refreshConfiguration: LKRefreshConfiguration,
             style: LKListStyle,
             updateEngine: LKUpdateEngine
         ) {
@@ -85,6 +92,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
             self.pendingListEvents = listEvents
             self.pendingSelectionConfiguration = selectionConfiguration
             self.pendingScrollConfiguration = scrollConfiguration
+            self.pendingRefreshConfiguration = refreshConfiguration
             self.pendingStyle = style
             self.pendingUpdateEngine = updateEngine
             self.layoutSignature = ""
@@ -101,6 +109,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
                 listEvents: pendingListEvents,
                 selectionConfiguration: pendingSelectionConfiguration,
                 scrollConfiguration: pendingScrollConfiguration,
+                refreshConfiguration: pendingRefreshConfiguration,
                 updateEngine: pendingUpdateEngine
             )
         }
@@ -111,6 +120,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
             listEvents: LKListEvents,
             selectionConfiguration: LKSelectionConfiguration,
             scrollConfiguration: LKScrollConfiguration,
+            refreshConfiguration: LKRefreshConfiguration,
             style: LKListStyle,
             updateEngine: LKUpdateEngine,
             to collectionView: UICollectionView
@@ -119,6 +129,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
             pendingListEvents = listEvents
             pendingSelectionConfiguration = selectionConfiguration
             pendingScrollConfiguration = scrollConfiguration
+            pendingRefreshConfiguration = refreshConfiguration
             pendingStyle = style
             pendingUpdateEngine = updateEngine
             updateLayoutIfNeeded(model: model, style: style, collectionView: collectionView)
@@ -126,7 +137,8 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
                 model,
                 listEvents: listEvents,
                 selectionConfiguration: selectionConfiguration,
-                scrollConfiguration: scrollConfiguration
+                scrollConfiguration: scrollConfiguration,
+                refreshConfiguration: refreshConfiguration
             )
         }
 

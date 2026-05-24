@@ -1886,19 +1886,19 @@ README의 첫 예시는 너무 단순한 todo list가 아니라, `onSelect`, `on
 
 ### 14. Refresh와 Search
 
-- [ ] `.refreshable {}` API를 구현합니다.
-- [ ] 내부 `UIRefreshControl` 연결을 구현합니다.
-- [ ] async refresh closure 완료 시 refresh control을 종료합니다.
-- [ ] refresh tint 설정 API를 구현합니다.
-- [ ] 외부 refreshing binding 필요 여부를 결정합니다.
-- [ ] SwiftUI `.searchable(text:)` pass-through 조합을 검증합니다.
-- [ ] UIKit `UISearchController` 직접 제공 여부를 문서상 advanced API로 남깁니다.
+- [x] `.refreshable {}` API를 구현합니다.
+- [x] 내부 `UIRefreshControl` 연결을 구현합니다.
+- [x] async refresh closure 완료 시 refresh control을 종료합니다.
+- [x] refresh tint 설정 API를 구현합니다.
+- [x] 외부 refreshing binding 필요 여부를 결정합니다. 1차 API에서는 async refresh action을 단일 소스로 유지합니다.
+- [x] SwiftUI `.searchable(text:)` pass-through 조합을 검증합니다.
+- [x] UIKit `UISearchController` 직접 제공 여부를 문서상 advanced API로 남깁니다. 1차 API에서는 직접 제공하지 않고 SwiftUI `.searchable` 조합을 우선합니다.
 
 완료 기준:
 
-- [ ] pull to refresh가 동작합니다.
-- [ ] async refresh 중복 실행 정책이 테스트됩니다.
-- [ ] `.searchable` 사용 예제가 컴파일됩니다.
+- [x] pull to refresh가 동작합니다.
+- [x] async refresh 중복 실행 정책이 테스트됩니다.
+- [x] `.searchable` 사용 예제가 컴파일됩니다.
 
 ### 15. Prefetching
 

@@ -27,8 +27,10 @@ final class LKCollectionViewAdapter: NSObject {
     private var listEvents: LKListEvents
     private var selectionConfiguration: LKSelectionConfiguration
     private var scrollConfiguration: LKScrollConfiguration
+    private var refreshConfiguration: LKRefreshConfiguration
     private var isReachEndArmed = true
     private var lastReachEndContentSize: CGSize?
+    private var isRefreshActionRunning = false
     private(set) var registeredCellKeys = Set<LKCellRegistrationKey>()
     private(set) var registeredHeaderKeys = Set<LKSupplementaryRegistrationKey>()
     private(set) var registeredFooterKeys = Set<LKSupplementaryRegistrationKey>()
@@ -56,6 +58,7 @@ final class LKCollectionViewAdapter: NSObject {
         listEvents: LKListEvents = LKListEvents(),
         selectionConfiguration: LKSelectionConfiguration = LKSelectionConfiguration(),
         scrollConfiguration: LKScrollConfiguration = LKScrollConfiguration(),
+        refreshConfiguration: LKRefreshConfiguration = LKRefreshConfiguration(),
         updateEngine: LKUpdateEngine = .reloadData
     ) {
         self.collectionView = collectionView
@@ -63,12 +66,14 @@ final class LKCollectionViewAdapter: NSObject {
         self.listEvents = listEvents
         self.selectionConfiguration = selectionConfiguration
         self.scrollConfiguration = scrollConfiguration
+        self.refreshConfiguration = refreshConfiguration
         self.updateEngine = updateEngine
         self.updateCoordinator = LKUpdateCoordinator(engine: updateEngine)
         super.init()
         collectionView.delegate = self
         configureSelectionBehavior(on: collectionView)
         configureScrollBehavior(on: collectionView)
+        configureRefreshControl(on: collectionView)
         if updateEngine == .diffableDataSource {
             configureDiffableDataSource(on: collectionView)
         } else {
@@ -81,7 +86,8 @@ final class LKCollectionViewAdapter: NSObject {
         _ model: LKListModel,
         listEvents: LKListEvents? = nil,
         selectionConfiguration: LKSelectionConfiguration? = nil,
-        scrollConfiguration: LKScrollConfiguration? = nil
+        scrollConfiguration: LKScrollConfiguration? = nil,
+        refreshConfiguration: LKRefreshConfiguration? = nil
     ) {
         if let listEvents {
             self.listEvents = listEvents
@@ -92,8 +98,12 @@ final class LKCollectionViewAdapter: NSObject {
         if let scrollConfiguration {
             self.scrollConfiguration = scrollConfiguration
         }
+        if let refreshConfiguration {
+            self.refreshConfiguration = refreshConfiguration
+        }
         configureSelectionBehavior(on: collectionView)
         configureScrollBehavior(on: collectionView)
+        configureRefreshControl(on: collectionView)
 
         guard isUpdating == false else {
             queuedUpdate = model
@@ -615,6 +625,40 @@ final class LKCollectionViewAdapter: NSObject {
             lastReachEndContentSize = scrollView.contentSize
         } else if isAtEnd == false {
             isReachEndArmed = true
+        }
+    }
+
+    private func configureRefreshControl(on collectionView: UICollectionView?) {
+        guard let collectionView else {
+            return
+        }
+
+        guard refreshConfiguration.isEnabled else {
+            collectionView.refreshControl = nil
+            isRefreshActionRunning = false
+            return
+        }
+
+        let refreshControl = collectionView.refreshControl ?? UIRefreshControl()
+        refreshControl.removeTarget(self, action: #selector(refreshControlValueChanged(_:)), for: .valueChanged)
+        refreshControl.addTarget(self, action: #selector(refreshControlValueChanged(_:)), for: .valueChanged)
+        refreshControl.tintColor = refreshConfiguration.tintColor
+        collectionView.refreshControl = refreshControl
+    }
+
+    @objc func refreshControlValueChanged(_ refreshControl: UIRefreshControl) {
+        guard
+            isRefreshActionRunning == false,
+            let action = refreshConfiguration.action
+        else {
+            return
+        }
+
+        isRefreshActionRunning = true
+        Task { @MainActor [weak self, weak refreshControl] in
+            await action()
+            refreshControl?.endRefreshing()
+            self?.isRefreshActionRunning = false
         }
     }
 
