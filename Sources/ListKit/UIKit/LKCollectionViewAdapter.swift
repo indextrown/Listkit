@@ -26,10 +26,14 @@ final class LKCollectionViewAdapter: NSObject {
     private(set) var registeredFooterKeys = Set<LKSupplementaryRegistrationKey>()
     private(set) var itemSizeStorage = [IndexPath: CGSize]()
     private(set) var supplementarySizeStorage = [LKSupplementarySizeKey: CGSize]()
+    private(set) var lastReconfiguredItemIdentifiers = [LKItemIdentifier]()
     private var isUpdating = false
     private var queuedUpdate: LKListModel?
+    private let updateEngine: LKUpdateEngine
     private let updateCoordinator: LKUpdateCoordinator
+    private var diffableDataSource: UICollectionViewDiffableDataSource<LKSectionIdentifier, LKItemIdentifier>?
     var reloadDataHandler: (() -> Void)?
+    var diffableApplyCompletionHandler: (() -> Void)?
     var focusRestorationHandler: (() -> Void)? {
         get { updateCoordinator.focusRestorationHandler }
         set { updateCoordinator.focusRestorationHandler = newValue }
@@ -42,10 +46,15 @@ final class LKCollectionViewAdapter: NSObject {
     ) {
         self.collectionView = collectionView
         self.currentModel = model
+        self.updateEngine = updateEngine
         self.updateCoordinator = LKUpdateCoordinator(engine: updateEngine)
         super.init()
         collectionView.delegate = self
-        collectionView.dataSource = self
+        if updateEngine == .diffableDataSource {
+            configureDiffableDataSource(on: collectionView)
+        } else {
+            collectionView.dataSource = self
+        }
         registerReuseIdentifiersIfNeeded(from: model)
     }
 
@@ -56,28 +65,44 @@ final class LKCollectionViewAdapter: NSObject {
         }
 
         isUpdating = true
-        updateCoordinator.apply(
-            model,
-            currentModel: currentModel,
-            collectionView: collectionView,
-            registerReuseIdentifiers: registerReuseIdentifiersIfNeeded(from:),
-            updateCurrentModel: { [weak self] model in
-                self?.currentModel = model
-            },
-            reloadData: { [weak self] in
-                guard let self else { return }
-                if let reloadDataHandler {
-                    reloadDataHandler()
-                } else {
-                    collectionView?.reloadData()
+
+        switch updateEngine {
+        case .diffableDataSource:
+            applyDiffableDataSource(model)
+        case .reloadData, .differenceKit:
+            updateCoordinator.apply(
+                model,
+                currentModel: currentModel,
+                collectionView: collectionView,
+                registerReuseIdentifiers: registerReuseIdentifiersIfNeeded(from:),
+                updateCurrentModel: { [weak self] model in
+                    self?.currentModel = model
+                },
+                reloadData: { [weak self] in
+                    guard let self else { return }
+                    if let reloadDataHandler {
+                        reloadDataHandler()
+                    } else {
+                        collectionView?.reloadData()
+                    }
                 }
-            }
-        )
+            )
+            finishApply()
+        }
+    }
+
+    private func finishApply() {
         isUpdating = false
 
         if let queuedUpdate {
             self.queuedUpdate = nil
-            apply(queuedUpdate)
+            if updateEngine == .diffableDataSource {
+                Task { @MainActor [weak self] in
+                    self?.apply(queuedUpdate)
+                }
+            } else {
+                apply(queuedUpdate)
+            }
         }
     }
 
@@ -167,20 +192,55 @@ final class LKCollectionViewAdapter: NSObject {
             withReuseIdentifier: key.reuseIdentifier
         )
     }
-}
 
-extension LKCollectionViewAdapter: UICollectionViewDataSource {
-    func numberOfSections(in collectionView: UICollectionView) -> Int {
-        currentModel.sections.count
+    private func configureDiffableDataSource(on collectionView: UICollectionView) {
+        diffableDataSource = UICollectionViewDiffableDataSource<LKSectionIdentifier, LKItemIdentifier>(
+            collectionView: collectionView
+        ) { [weak self] collectionView, indexPath, _ in
+            self?.makeCell(collectionView, at: indexPath) ?? UICollectionViewCell()
+        }
+
+        diffableDataSource?.supplementaryViewProvider = { [weak self] collectionView, kind, indexPath in
+            self?.makeSupplementaryView(collectionView, kind: kind, at: indexPath) ?? UICollectionReusableView()
+        }
     }
 
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        currentModel.section(at: section)?.items.count ?? 0
+    private func applyDiffableDataSource(_ model: LKListModel) {
+        model.validateForApply()
+        let previousModel = currentModel
+        let selectedItemIDs = selectedItemIDs(in: collectionView, model: previousModel)
+        let changedItems = changedContentItemIdentifiers(from: previousModel, to: model)
+
+        registerReuseIdentifiersIfNeeded(from: model)
+        currentModel = model
+
+        var snapshot = NSDiffableDataSourceSnapshot<LKSectionIdentifier, LKItemIdentifier>()
+        for section in model.sections {
+            let sectionIdentifier = LKSectionIdentifier(section)
+            snapshot.appendSections([sectionIdentifier])
+            snapshot.appendItems(
+                section.items.map { LKItemIdentifier(section: section, item: $0) },
+                toSection: sectionIdentifier
+            )
+        }
+        lastReconfiguredItemIdentifiers = changedItems
+        if changedItems.isEmpty == false {
+            snapshot.reloadItems(changedItems)
+        }
+
+        let shouldAnimate = collectionView?.window != nil
+        diffableDataSource?.apply(snapshot, animatingDifferences: shouldAnimate) { [weak self] in
+            guard let self else { return }
+            self.restoreSelection(selectedItemIDs, in: self.collectionView, model: model)
+            self.restoreFocus(in: self.collectionView)
+            self.diffableApplyCompletionHandler?()
+            self.finishApply()
+        }
     }
 
-    func collectionView(
+    private func makeCell(
         _ collectionView: UICollectionView,
-        cellForItemAt indexPath: IndexPath
+        at indexPath: IndexPath
     ) -> UICollectionViewCell {
         guard let item = currentModel.item(at: indexPath) else {
             return UICollectionViewCell()
@@ -196,9 +256,9 @@ extension LKCollectionViewAdapter: UICollectionViewDataSource {
         return cell
     }
 
-    func collectionView(
+    private func makeSupplementaryView(
         _ collectionView: UICollectionView,
-        viewForSupplementaryElementOfKind kind: String,
+        kind: String,
         at indexPath: IndexPath
     ) -> UICollectionReusableView {
         let supplementaryKind: LKSupplementaryKind
@@ -225,6 +285,99 @@ extension LKCollectionViewAdapter: UICollectionViewDataSource {
             self?.recordSupplementarySize(size, kind: kind, at: indexPath)
         }
         return view
+    }
+
+    private func changedContentItemIdentifiers(
+        from oldModel: LKListModel,
+        to newModel: LKListModel
+    ) -> [LKItemIdentifier] {
+        var oldItems = [LKItemIdentifier: LKItemModel]()
+
+        for section in oldModel.sections {
+            for item in section.items {
+                oldItems[LKItemIdentifier(section: section, item: item)] = item
+            }
+        }
+
+        return newModel.sections.flatMap { section in
+            section.items.compactMap { item in
+                let identifier = LKItemIdentifier(section: section, item: item)
+                guard
+                    let oldItem = oldItems[identifier],
+                    oldItem.contentToken != item.contentToken
+                else {
+                    return nil
+                }
+                return identifier
+            }
+        }
+    }
+
+    private func selectedItemIDs(
+        in collectionView: UICollectionView?,
+        model: LKListModel
+    ) -> [AnyHashable] {
+        collectionView?.indexPathsForSelectedItems?.compactMap { indexPath in
+            model.item(at: indexPath)?.id
+        } ?? []
+    }
+
+    private func restoreSelection(
+        _ selectedItemIDs: [AnyHashable],
+        in collectionView: UICollectionView?,
+        model: LKListModel
+    ) {
+        guard let collectionView, selectedItemIDs.isEmpty == false else {
+            return
+        }
+
+        for itemID in selectedItemIDs {
+            guard let indexPath = indexPath(forItemID: itemID, in: model) else {
+                continue
+            }
+            collectionView.selectItem(at: indexPath, animated: false, scrollPosition: [])
+        }
+    }
+
+    private func restoreFocus(in collectionView: UICollectionView?) {
+        collectionView?.setNeedsFocusUpdate()
+        focusRestorationHandler?()
+    }
+
+    private func indexPath(forItemID itemID: AnyHashable, in model: LKListModel) -> IndexPath? {
+        for sectionIndex in model.sections.indices {
+            let section = model.sections[sectionIndex]
+            guard let itemIndex = section.items.firstIndex(where: { $0.id == itemID }) else {
+                continue
+            }
+            return IndexPath.lkIndexPath(item: itemIndex, section: sectionIndex)
+        }
+        return nil
+    }
+}
+
+extension LKCollectionViewAdapter: UICollectionViewDataSource {
+    func numberOfSections(in collectionView: UICollectionView) -> Int {
+        currentModel.sections.count
+    }
+
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        currentModel.section(at: section)?.items.count ?? 0
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        cellForItemAt indexPath: IndexPath
+    ) -> UICollectionViewCell {
+        makeCell(collectionView, at: indexPath)
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        viewForSupplementaryElementOfKind kind: String,
+        at indexPath: IndexPath
+    ) -> UICollectionReusableView {
+        makeSupplementaryView(collectionView, kind: kind, at: indexPath)
     }
 }
 

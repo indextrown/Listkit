@@ -175,6 +175,158 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         XCTAssertTrue(didCallFocusHook)
     }
 
+    func testDiffableDataSourceApplyReflectsInsertDeleteAndMove() async {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            updateEngine: .diffableDataSource
+        )
+        let oneItem = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [LKItemModel(id: "one")]),
+            ]
+        )
+        let twoItems = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "two"),
+                    LKItemModel(id: "one"),
+                ]),
+            ]
+        )
+        let noItems = LKListModel(sections: [LKSectionModel(id: "section")])
+
+        await applyDiffable(oneItem, to: adapter)
+        XCTAssertEqual(collectionView.numberOfItems(inSection: 0), 1)
+
+        await applyDiffable(twoItems, to: adapter)
+        XCTAssertEqual(collectionView.numberOfItems(inSection: 0), 2)
+        XCTAssertEqual(adapter.currentModel.sections.first?.items.first?.id, AnyHashable("two"))
+
+        await applyDiffable(noItems, to: adapter)
+        XCTAssertEqual(collectionView.numberOfItems(inSection: 0), 0)
+    }
+
+    func testDiffableDataSourceRegistersSupplementaryProviderAndCellProvider() async {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            updateEngine: .diffableDataSource
+        )
+        let model = makeModel(sectionID: "diffable", itemID: "item")
+
+        await applyDiffable(model, to: adapter)
+
+        let cell = collectionView.dataSource?.collectionView(
+            collectionView,
+            cellForItemAt: IndexPath.lkIndexPath(item: 0, section: 0)
+        ) as? LKHostingCollectionViewCell
+        let headerView = collectionView.dataSource?.collectionView?(
+            collectionView,
+            viewForSupplementaryElementOfKind: UICollectionView.elementKindSectionHeader,
+            at: IndexPath.lkIndexPath(item: 0, section: 0)
+        ) as? LKHostingSupplementaryView
+
+        XCTAssertEqual(cell?.renderedItemID, AnyHashable("item"))
+        XCTAssertEqual(headerView?.renderedSupplementaryID, AnyHashable("diffable-header"))
+    }
+
+    func testDiffableDataSourceReconfiguresItemsWhenContentTokenChanges() async {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            updateEngine: .diffableDataSource
+        )
+        let first = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "item", contentToken: "old"),
+                ]),
+            ]
+        )
+        let changed = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "item", contentToken: "new"),
+                ]),
+            ]
+        )
+
+        await applyDiffable(first, to: adapter)
+        await applyDiffable(changed, to: adapter)
+
+        XCTAssertEqual(
+            adapter.lastReconfiguredItemIdentifiers,
+            [LKItemIdentifier(sectionID: "section", itemID: "item")]
+        )
+    }
+
+    func testDiffableDataSourceRestoresSelectionByItemIdentity() async {
+        let collectionView = makeCollectionView()
+        collectionView.allowsSelection = true
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            updateEngine: .diffableDataSource
+        )
+        let original = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "selected"),
+                    LKItemModel(id: "other"),
+                ]),
+            ]
+        )
+        let reordered = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "other"),
+                    LKItemModel(id: "selected"),
+                ]),
+            ]
+        )
+
+        await applyDiffable(original, to: adapter)
+        collectionView.selectItem(
+            at: IndexPath.lkIndexPath(item: 0, section: 0),
+            animated: false,
+            scrollPosition: []
+        )
+        await applyDiffable(reordered, to: adapter)
+
+        XCTAssertEqual(collectionView.indexPathsForSelectedItems, [
+            IndexPath.lkIndexPath(item: 1, section: 0),
+        ])
+    }
+
+    func testDiffableDataSourceQueuedUpdateKeepsLastUpdateUntilCompletion() async {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            updateEngine: .diffableDataSource
+        )
+        let first = makeModel(sectionID: "first", itemID: "first-item")
+        let second = makeModel(sectionID: "second", itemID: "second-item")
+        let third = makeModel(sectionID: "third", itemID: "third-item")
+        var didReenter = false
+        let didApplyQueuedUpdate = expectation(description: "applies queued diffable update")
+
+        adapter.diffableApplyCompletionHandler = {
+            if didReenter == false {
+                didReenter = true
+                adapter.apply(second)
+                adapter.apply(third)
+            } else if adapter.currentModel.sections.first?.id == AnyHashable("third") {
+                didApplyQueuedUpdate.fulfill()
+            }
+        }
+
+        adapter.apply(first)
+        await fulfillment(of: [didApplyQueuedUpdate], timeout: 2.0)
+
+        XCTAssertEqual(adapter.currentModel.sections.first?.id, AnyHashable("third"))
+        XCTAssertEqual(adapter.currentModel.sections.first?.items.first?.id, AnyHashable("third-item"))
+    }
+
     func testDequeuedCellRendersSwiftUIContentConfiguration() {
         let collectionView = makeCollectionView()
         let adapter = LKCollectionViewAdapter(collectionView: collectionView)
@@ -364,6 +516,21 @@ final class LKCollectionViewAdapterTests: XCTestCase {
                 ),
             ]
         )
+    }
+
+    private func applyDiffable(
+        _ model: LKListModel,
+        to adapter: LKCollectionViewAdapter,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        let didApply = expectation(description: "applies diffable snapshot")
+        adapter.diffableApplyCompletionHandler = {
+            didApply.fulfill()
+        }
+        adapter.apply(model)
+        await fulfillment(of: [didApply], timeout: 2.0)
+        adapter.diffableApplyCompletionHandler = nil
     }
 }
 #endif

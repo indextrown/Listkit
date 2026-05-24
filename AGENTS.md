@@ -1770,22 +1770,22 @@ README의 첫 예시는 너무 단순한 todo list가 아니라, `onSelect`, `on
 
 ### 8. Diffable Data Source Engine
 
-- [ ] `LKUpdateEngine.diffableDataSource`를 구현합니다.
-- [ ] `LKSectionIdentifier`를 구현합니다.
-- [ ] `LKItemIdentifier`를 구현합니다.
-- [ ] `NSDiffableDataSourceSnapshot` 생성 로직을 구현합니다.
-- [ ] diffable data source cell provider를 구현합니다.
-- [ ] supplementary view provider를 구현합니다.
-- [ ] content token 변경 시 reload/reconfigure 정책을 구현합니다.
-- [ ] duplicate id가 diffable crash로 이어지기 전에 진단되게 합니다.
-- [ ] apply completion에서 current snapshot을 갱신합니다.
-- [ ] apply 중 새 요청 queueing과 diffable completion 순서를 맞춥니다.
+- [x] `LKUpdateEngine.diffableDataSource`를 구현합니다.
+- [x] `LKSectionIdentifier`를 구현합니다.
+- [x] `LKItemIdentifier`를 구현합니다.
+- [x] `NSDiffableDataSourceSnapshot` 생성 로직을 구현합니다.
+- [x] diffable data source cell provider를 구현합니다.
+- [x] supplementary view provider를 구현합니다.
+- [x] content token 변경 시 reload/reconfigure 정책을 구현합니다.
+- [x] duplicate id가 diffable crash로 이어지기 전에 진단되게 합니다.
+- [x] apply completion에서 current snapshot을 갱신합니다.
+- [x] apply 중 새 요청 queueing과 diffable completion 순서를 맞춥니다.
 
 완료 기준:
 
-- [ ] insert/delete/move animation이 동작합니다.
-- [ ] content update만 있는 row가 갱신됩니다.
-- [ ] selection이 가능한 한 identity 기준으로 유지됩니다.
+- [x] insert/delete/move animation이 동작합니다.
+- [x] content update만 있는 row가 갱신됩니다.
+- [x] selection이 가능한 한 identity 기준으로 유지됩니다.
 
 ### 9. DifferenceKit Engine
 

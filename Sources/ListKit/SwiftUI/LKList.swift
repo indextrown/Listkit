@@ -8,12 +8,13 @@ public struct LKList<Content: View>: View {
     let sections: [LKSection]
     #if canImport(UIKit)
     let style: LKListStyle
+    let updateEngine: LKUpdateEngine
     #endif
 
     @ViewBuilder
     public var body: some View {
         #if canImport(UIKit)
-        LKCollectionViewRepresentable(model: model, style: style)
+        LKCollectionViewRepresentable(model: model, style: style, updateEngine: updateEngine)
         #else
         EmptyView()
         #endif
@@ -43,6 +44,7 @@ public struct LKList<Content: View>: View {
         self.sections = []
         #if canImport(UIKit)
         self.style = .plain
+        self.updateEngine = .reloadData
         #endif
     }
 
@@ -53,6 +55,7 @@ public struct LKList<Content: View>: View {
         self.events = LKListEvents()
         #if canImport(UIKit)
         self.style = .plain
+        self.updateEngine = .reloadData
         #endif
     }
 
@@ -61,16 +64,22 @@ public struct LKList<Content: View>: View {
         model: LKListModel,
         events: LKListEvents,
         sections: [LKSection],
-        style: LKListStyle
+        style: LKListStyle,
+        updateEngine: LKUpdateEngine
     ) {
         self.model = model
         self.events = events
         self.sections = sections
         self.style = style
+        self.updateEngine = updateEngine
     }
 
     public func listKitStyle(_ style: LKListStyle) -> Self {
-        Self(model: model, events: events, sections: sections, style: style)
+        Self(model: model, events: events, sections: sections, style: style, updateEngine: updateEngine)
+    }
+
+    public func updateEngine(_ updateEngine: LKUpdateEngine) -> Self {
+        Self(model: model, events: events, sections: sections, style: style, updateEngine: updateEngine)
     }
     #endif
 }
