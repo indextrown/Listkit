@@ -26,6 +26,9 @@ final class LKCollectionViewAdapter: NSObject {
     private(set) var currentModel: LKListModel
     private var listEvents: LKListEvents
     private var selectionConfiguration: LKSelectionConfiguration
+    private var scrollConfiguration: LKScrollConfiguration
+    private var isReachEndArmed = true
+    private var lastReachEndContentSize: CGSize?
     private(set) var registeredCellKeys = Set<LKCellRegistrationKey>()
     private(set) var registeredHeaderKeys = Set<LKSupplementaryRegistrationKey>()
     private(set) var registeredFooterKeys = Set<LKSupplementaryRegistrationKey>()
@@ -52,17 +55,20 @@ final class LKCollectionViewAdapter: NSObject {
         model: LKListModel = .empty,
         listEvents: LKListEvents = LKListEvents(),
         selectionConfiguration: LKSelectionConfiguration = LKSelectionConfiguration(),
+        scrollConfiguration: LKScrollConfiguration = LKScrollConfiguration(),
         updateEngine: LKUpdateEngine = .reloadData
     ) {
         self.collectionView = collectionView
         self.currentModel = model
         self.listEvents = listEvents
         self.selectionConfiguration = selectionConfiguration
+        self.scrollConfiguration = scrollConfiguration
         self.updateEngine = updateEngine
         self.updateCoordinator = LKUpdateCoordinator(engine: updateEngine)
         super.init()
         collectionView.delegate = self
         configureSelectionBehavior(on: collectionView)
+        configureScrollBehavior(on: collectionView)
         if updateEngine == .diffableDataSource {
             configureDiffableDataSource(on: collectionView)
         } else {
@@ -74,7 +80,8 @@ final class LKCollectionViewAdapter: NSObject {
     func apply(
         _ model: LKListModel,
         listEvents: LKListEvents? = nil,
-        selectionConfiguration: LKSelectionConfiguration? = nil
+        selectionConfiguration: LKSelectionConfiguration? = nil,
+        scrollConfiguration: LKScrollConfiguration? = nil
     ) {
         if let listEvents {
             self.listEvents = listEvents
@@ -82,7 +89,11 @@ final class LKCollectionViewAdapter: NSObject {
         if let selectionConfiguration {
             self.selectionConfiguration = selectionConfiguration
         }
+        if let scrollConfiguration {
+            self.scrollConfiguration = scrollConfiguration
+        }
         configureSelectionBehavior(on: collectionView)
+        configureScrollBehavior(on: collectionView)
 
         guard isUpdating == false else {
             queuedUpdate = model
@@ -535,6 +546,78 @@ final class LKCollectionViewAdapter: NSObject {
         }
     }
 
+    private func configureScrollBehavior(on collectionView: UICollectionView?) {
+        guard let collectionView else {
+            return
+        }
+
+        switch scrollConfiguration.indicatorVisibility {
+        case .automatic:
+            collectionView.showsVerticalScrollIndicator = true
+            collectionView.showsHorizontalScrollIndicator = true
+        case .visible:
+            collectionView.showsVerticalScrollIndicator = true
+            collectionView.showsHorizontalScrollIndicator = true
+        case .hidden:
+            collectionView.showsVerticalScrollIndicator = false
+            collectionView.showsHorizontalScrollIndicator = false
+        }
+
+        if let mode = scrollConfiguration.keyboardDismissMode,
+           let keyboardDismissMode = UIScrollView.KeyboardDismissMode(rawValue: mode) {
+            collectionView.keyboardDismissMode = keyboardDismissMode
+        }
+
+        if let contentInsets = scrollConfiguration.contentInsets {
+            collectionView.contentInset = UIEdgeInsets(
+                top: contentInsets.top,
+                left: contentInsets.left,
+                bottom: contentInsets.bottom,
+                right: contentInsets.right
+            )
+        }
+    }
+
+    private func scrollContext(for scrollView: UIScrollView) -> LKScrollContext {
+        let adjustedInset = scrollView.adjustedContentInset
+        return LKScrollContext(
+            contentOffset: scrollView.contentOffset,
+            contentSize: scrollView.contentSize,
+            boundsSize: scrollView.bounds.size,
+            adjustedContentInset: LKEdgeInsets(
+                top: adjustedInset.top,
+                left: adjustedInset.left,
+                bottom: adjustedInset.bottom,
+                right: adjustedInset.right
+            )
+        )
+    }
+
+    private func evaluateReachEnd(using scrollView: UIScrollView) {
+        guard
+            let threshold = scrollConfiguration.reachEndThreshold,
+            let didReachEnd = listEvents.didReachEnd
+        else {
+            return
+        }
+
+        let visibleMaxY = scrollView.contentOffset.y
+            + scrollView.bounds.height
+            - scrollView.adjustedContentInset.top
+            - scrollView.adjustedContentInset.bottom
+        let reachY = scrollView.contentSize.height - threshold.points
+        let isAtEnd = visibleMaxY >= reachY
+        let contentSizeChanged = lastReachEndContentSize != scrollView.contentSize
+
+        if isAtEnd, isReachEndArmed || contentSizeChanged {
+            didReachEnd()
+            isReachEndArmed = false
+            lastReachEndContentSize = scrollView.contentSize
+        } else if isAtEnd == false {
+            isReachEndArmed = true
+        }
+    }
+
     private func restoreFocus(in collectionView: UICollectionView?) {
         collectionView?.setNeedsFocusUpdate()
         focusRestorationHandler?()
@@ -783,6 +866,43 @@ extension LKCollectionViewAdapter: UICollectionViewDelegate {
         case .custom:
             break
         }
+    }
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        listEvents.didScroll?(scrollContext(for: scrollView))
+        evaluateReachEnd(using: scrollView)
+    }
+
+    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        listEvents.willBeginDragging?(scrollContext(for: scrollView))
+    }
+
+    func scrollViewWillEndDragging(
+        _ scrollView: UIScrollView,
+        withVelocity velocity: CGPoint,
+        targetContentOffset: UnsafeMutablePointer<CGPoint>
+    ) {
+        listEvents.willEndDragging?(scrollContext(for: scrollView))
+    }
+
+    func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        listEvents.didEndDragging?(scrollContext(for: scrollView))
+    }
+
+    func scrollViewWillBeginDecelerating(_ scrollView: UIScrollView) {
+        listEvents.willBeginDecelerating?(scrollContext(for: scrollView))
+    }
+
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        listEvents.didEndDecelerating?(scrollContext(for: scrollView))
+    }
+
+    func scrollViewShouldScrollToTop(_ scrollView: UIScrollView) -> Bool {
+        listEvents.shouldScrollToTop?(scrollContext(for: scrollView)) ?? true
+    }
+
+    func scrollViewDidScrollToTop(_ scrollView: UIScrollView) {
+        listEvents.didScrollToTop?(scrollContext(for: scrollView))
     }
 }
 #endif

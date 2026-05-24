@@ -88,6 +88,15 @@ public struct LKListEvents {
     var didUnhighlight: ((LKAnyItemContext) -> Void)?
     var willDisplay: ((LKAnyItemContext) -> Void)?
     var didEndDisplaying: ((LKAnyItemContext) -> Void)?
+    var didScroll: ((LKScrollContext) -> Void)?
+    var willBeginDragging: ((LKScrollContext) -> Void)?
+    var willEndDragging: ((LKScrollContext) -> Void)?
+    var didEndDragging: ((LKScrollContext) -> Void)?
+    var willBeginDecelerating: ((LKScrollContext) -> Void)?
+    var didEndDecelerating: ((LKScrollContext) -> Void)?
+    var shouldScrollToTop: ((LKScrollContext) -> Bool)?
+    var didScrollToTop: ((LKScrollContext) -> Void)?
+    var didReachEnd: (() -> Void)?
     public init() {}
 }
 

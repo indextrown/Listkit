@@ -1865,24 +1865,24 @@ README의 첫 예시는 너무 단순한 todo list가 아니라, `onSelect`, `on
 
 ### 13. Scroll Delegate와 편의 기능
 
-- [ ] `scrollViewDidScroll`을 `.onScroll`로 연결합니다.
-- [ ] `scrollViewWillBeginDragging`을 연결합니다.
-- [ ] `scrollViewWillEndDragging`을 연결합니다.
-- [ ] `scrollViewDidEndDragging`을 연결합니다.
-- [ ] `scrollViewWillBeginDecelerating`을 연결합니다.
-- [ ] `scrollViewDidEndDecelerating`을 연결합니다.
-- [ ] `scrollViewShouldScrollToTop`을 연결합니다.
-- [ ] `scrollViewDidScrollToTop`을 연결합니다.
-- [ ] `.onReachEnd`를 구현합니다.
-- [ ] reach end 중복 호출 방지 정책을 구현합니다.
-- [ ] scroll indicator modifier를 구현합니다.
-- [ ] keyboard dismiss mode modifier를 구현합니다.
-- [ ] content inset modifier를 구현합니다.
+- [x] `scrollViewDidScroll`을 `.onScroll`로 연결합니다.
+- [x] `scrollViewWillBeginDragging`을 연결합니다.
+- [x] `scrollViewWillEndDragging`을 연결합니다.
+- [x] `scrollViewDidEndDragging`을 연결합니다.
+- [x] `scrollViewWillBeginDecelerating`을 연결합니다.
+- [x] `scrollViewDidEndDecelerating`을 연결합니다.
+- [x] `scrollViewShouldScrollToTop`을 연결합니다.
+- [x] `scrollViewDidScrollToTop`을 연결합니다.
+- [x] `.onReachEnd`를 구현합니다.
+- [x] reach end 중복 호출 방지 정책을 구현합니다.
+- [x] scroll indicator modifier를 구현합니다.
+- [x] keyboard dismiss mode modifier를 구현합니다.
+- [x] content inset modifier를 구현합니다.
 
 완료 기준:
 
-- [ ] scroll callback 테스트가 통과합니다.
-- [ ] reach end가 threshold 기준으로 호출됩니다.
+- [x] scroll callback 테스트가 통과합니다.
+- [x] reach end가 threshold 기준으로 호출됩니다.
 
 ### 14. Refresh와 Search
 

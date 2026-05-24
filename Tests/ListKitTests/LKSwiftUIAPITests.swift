@@ -2,6 +2,9 @@
 import SwiftUI
 import XCTest
 @testable import ListKit
+#if canImport(UIKit)
+import UIKit
+#endif
 
 @MainActor
 final class LKSwiftUIAPITests: XCTestCase {
@@ -148,6 +151,38 @@ final class LKSwiftUIAPITests: XCTestCase {
 
         XCTAssertEqual(singleList.selectionConfiguration.mode, .single)
         XCTAssertEqual(multipleList.selectionConfiguration.mode, .none)
+    }
+
+    func testScrollModifiersStoreEventsAndConfiguration() {
+        let list = LKList([Message(id: 1, title: "One")], id: \.id) { message in
+            Text(message.title)
+        }
+        .onScroll { _ in }
+        .onWillBeginDragging { _ in }
+        .onWillEndDragging { _ in }
+        .onDidEndDragging { _ in }
+        .onWillBeginDecelerating { _ in }
+        .onDidEndDecelerating { _ in }
+        .onShouldScrollToTop { _ in false }
+        .onDidScrollToTop { _ in }
+        .onReachEnd(threshold: .points(120)) {}
+        .scrollIndicators(.hidden)
+        .keyboardDismissMode(.onDrag)
+        .contentInsets(LKEdgeInsets(top: 1, left: 2, bottom: 3, right: 4))
+
+        XCTAssertNotNil(list.events.didScroll)
+        XCTAssertNotNil(list.events.willBeginDragging)
+        XCTAssertNotNil(list.events.willEndDragging)
+        XCTAssertNotNil(list.events.didEndDragging)
+        XCTAssertNotNil(list.events.willBeginDecelerating)
+        XCTAssertNotNil(list.events.didEndDecelerating)
+        XCTAssertNotNil(list.events.shouldScrollToTop)
+        XCTAssertNotNil(list.events.didScrollToTop)
+        XCTAssertNotNil(list.events.didReachEnd)
+        XCTAssertEqual(list.scrollConfiguration.indicatorVisibility, .hidden)
+        XCTAssertEqual(list.scrollConfiguration.keyboardDismissMode, UIScrollView.KeyboardDismissMode.onDrag.rawValue)
+        XCTAssertEqual(list.scrollConfiguration.contentInsets, LKEdgeInsets(top: 1, left: 2, bottom: 3, right: 4))
+        XCTAssertEqual(list.scrollConfiguration.reachEndThreshold, .points(120))
     }
     #endif
 }

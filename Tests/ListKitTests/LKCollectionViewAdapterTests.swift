@@ -525,6 +525,125 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         XCTAssertNil(selectedID)
     }
 
+    func testScrollConfigurationAppliesToCollectionView() {
+        let collectionView = makeCollectionView()
+        var scrollConfiguration = LKScrollConfiguration()
+        scrollConfiguration.indicatorVisibility = .hidden
+        scrollConfiguration.keyboardDismissMode = UIScrollView.KeyboardDismissMode.onDrag.rawValue
+        scrollConfiguration.contentInsets = LKEdgeInsets(top: 8, left: 7, bottom: 6, right: 5)
+
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            scrollConfiguration: scrollConfiguration
+        )
+        adapter.apply(makeModel(), scrollConfiguration: scrollConfiguration)
+
+        XCTAssertFalse(collectionView.showsVerticalScrollIndicator)
+        XCTAssertFalse(collectionView.showsHorizontalScrollIndicator)
+        XCTAssertEqual(collectionView.keyboardDismissMode, .onDrag)
+        XCTAssertEqual(collectionView.contentInset, UIEdgeInsets(top: 8, left: 7, bottom: 6, right: 5))
+    }
+
+    func testScrollDelegateCallbacksRouteScrollContext() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        var events = LKListEvents()
+        var routedEvents = [String]()
+        var receivedContext: LKScrollContext?
+
+        collectionView.contentSize = CGSize(width: 320, height: 1_000)
+        collectionView.contentOffset = CGPoint(x: 0, y: 120)
+        events.didScroll = { context in
+            routedEvents.append("didScroll")
+            receivedContext = context
+        }
+        events.willBeginDragging = { _ in routedEvents.append("willBeginDragging") }
+        events.willEndDragging = { _ in routedEvents.append("willEndDragging") }
+        events.didEndDragging = { _ in routedEvents.append("didEndDragging") }
+        events.willBeginDecelerating = { _ in routedEvents.append("willBeginDecelerating") }
+        events.didEndDecelerating = { _ in routedEvents.append("didEndDecelerating") }
+        events.didScrollToTop = { _ in routedEvents.append("didScrollToTop") }
+
+        adapter.apply(makeModel(), listEvents: events)
+        adapter.scrollViewDidScroll(collectionView)
+        adapter.scrollViewWillBeginDragging(collectionView)
+        var targetContentOffset = CGPoint.zero
+        withUnsafeMutablePointer(to: &targetContentOffset) { pointer in
+            adapter.scrollViewWillEndDragging(
+                collectionView,
+                withVelocity: CGPoint(x: 0, y: 1),
+                targetContentOffset: pointer
+            )
+        }
+        adapter.scrollViewDidEndDragging(collectionView, willDecelerate: true)
+        adapter.scrollViewWillBeginDecelerating(collectionView)
+        adapter.scrollViewDidEndDecelerating(collectionView)
+        adapter.scrollViewDidScrollToTop(collectionView)
+
+        XCTAssertEqual(routedEvents, [
+            "didScroll",
+            "willBeginDragging",
+            "willEndDragging",
+            "didEndDragging",
+            "willBeginDecelerating",
+            "didEndDecelerating",
+            "didScrollToTop",
+        ])
+        XCTAssertEqual(receivedContext?.contentOffset, CGPoint(x: 0, y: 120))
+        XCTAssertEqual(receivedContext?.contentSize, CGSize(width: 320, height: 1_000))
+        XCTAssertEqual(receivedContext?.boundsSize, collectionView.bounds.size)
+    }
+
+    func testScrollViewShouldScrollToTopUsesHandlerOrDefault() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        var events = LKListEvents()
+        events.shouldScrollToTop = { _ in false }
+
+        adapter.apply(makeModel(), listEvents: events)
+        XCTAssertFalse(adapter.scrollViewShouldScrollToTop(collectionView))
+
+        adapter.apply(makeModel(), listEvents: LKListEvents())
+        XCTAssertTrue(adapter.scrollViewShouldScrollToTop(collectionView))
+    }
+
+    func testReachEndFiresAtThresholdAndRearmsAfterMovingAway() {
+        let collectionView = makeCollectionView()
+        collectionView.contentSize = CGSize(width: 320, height: 1_000)
+        var events = LKListEvents()
+        var reachEndCount = 0
+        events.didReachEnd = {
+            reachEndCount += 1
+        }
+        var scrollConfiguration = LKScrollConfiguration()
+        scrollConfiguration.reachEndThreshold = .points(80)
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            listEvents: events,
+            scrollConfiguration: scrollConfiguration
+        )
+
+        collectionView.contentOffset = CGPoint(x: 0, y: 400)
+        adapter.scrollViewDidScroll(collectionView)
+        XCTAssertEqual(reachEndCount, 0)
+
+        collectionView.contentOffset = CGPoint(x: 0, y: 540)
+        adapter.scrollViewDidScroll(collectionView)
+        adapter.scrollViewDidScroll(collectionView)
+        XCTAssertEqual(reachEndCount, 1)
+
+        collectionView.contentOffset = CGPoint(x: 0, y: 100)
+        adapter.scrollViewDidScroll(collectionView)
+        collectionView.contentOffset = CGPoint(x: 0, y: 540)
+        adapter.scrollViewDidScroll(collectionView)
+        XCTAssertEqual(reachEndCount, 2)
+
+        collectionView.contentSize = CGSize(width: 320, height: 1_200)
+        collectionView.contentOffset = CGPoint(x: 0, y: 740)
+        adapter.scrollViewDidScroll(collectionView)
+        XCTAssertEqual(reachEndCount, 3)
+    }
+
     func testDiffableDataSourceApplyReflectsInsertDeleteAndMove() async {
         let collectionView = makeCollectionView()
         let adapter = LKCollectionViewAdapter(
