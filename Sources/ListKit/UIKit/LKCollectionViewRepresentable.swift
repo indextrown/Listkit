@@ -4,21 +4,24 @@ import UIKit
 
 public struct LKCollectionViewRepresentable: UIViewRepresentable {
     let model: LKListModel
+    let listEvents: LKListEvents
     let style: LKListStyle
     let updateEngine: LKUpdateEngine
 
     init(
         model: LKListModel,
+        listEvents: LKListEvents = LKListEvents(),
         style: LKListStyle = .plain,
         updateEngine: LKUpdateEngine = .reloadData
     ) {
         self.model = model
+        self.listEvents = listEvents
         self.style = style
         self.updateEngine = updateEngine
     }
 
     public func makeCoordinator() -> Coordinator {
-        Coordinator(model: model, style: style, updateEngine: updateEngine)
+        Coordinator(model: model, listEvents: listEvents, style: style, updateEngine: updateEngine)
     }
 
     public func makeUIView(context: Context) -> UICollectionView {
@@ -36,18 +39,26 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
 
     public func updateUIView(_ collectionView: UICollectionView, context: Context) {
         context.coordinator.installIfNeeded(on: collectionView)
-        context.coordinator.apply(model, style: style, updateEngine: updateEngine, to: collectionView)
+        context.coordinator.apply(
+            model,
+            listEvents: listEvents,
+            style: style,
+            updateEngine: updateEngine,
+            to: collectionView
+        )
     }
 
     public final class Coordinator {
         private var adapter: LKCollectionViewAdapter?
         private var pendingModel: LKListModel
+        private var pendingListEvents: LKListEvents
         private var pendingStyle: LKListStyle
         private var pendingUpdateEngine: LKUpdateEngine
         private var layoutSignature: String
 
-        init(model: LKListModel, style: LKListStyle, updateEngine: LKUpdateEngine) {
+        init(model: LKListModel, listEvents: LKListEvents, style: LKListStyle, updateEngine: LKUpdateEngine) {
             self.pendingModel = model
+            self.pendingListEvents = listEvents
             self.pendingStyle = style
             self.pendingUpdateEngine = updateEngine
             self.layoutSignature = ""
@@ -61,6 +72,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
             adapter = LKCollectionViewAdapter(
                 collectionView: collectionView,
                 model: pendingModel,
+                listEvents: pendingListEvents,
                 updateEngine: pendingUpdateEngine
             )
         }
@@ -68,15 +80,17 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
         @MainActor
         func apply(
             _ model: LKListModel,
+            listEvents: LKListEvents,
             style: LKListStyle,
             updateEngine: LKUpdateEngine,
             to collectionView: UICollectionView
         ) {
             pendingModel = model
+            pendingListEvents = listEvents
             pendingStyle = style
             pendingUpdateEngine = updateEngine
             updateLayoutIfNeeded(model: model, style: style, collectionView: collectionView)
-            adapter?.apply(model)
+            adapter?.apply(model, listEvents: listEvents)
         }
 
         @MainActor

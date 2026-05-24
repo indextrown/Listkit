@@ -1807,43 +1807,43 @@ README의 첫 예시는 너무 단순한 todo list가 아니라, `onSelect`, `on
 
 ### 10. Event Routing
 
-- [ ] `LKListEvents`를 구현합니다.
-- [ ] `LKSectionEvents`를 구현합니다.
-- [ ] `LKRowEvents`를 구현합니다.
-- [ ] `LKSupplementaryEvents`를 구현합니다.
-- [ ] row-level handler 우선순위를 구현합니다.
-- [ ] section-level handler fallback을 구현합니다.
-- [ ] list-level handler fallback을 구현합니다.
-- [ ] default behavior fallback을 구현합니다.
-- [ ] `LKItemContext`를 구현합니다.
-- [ ] `LKAnyItemContext`를 구현합니다.
-- [ ] supplementary context를 구현합니다.
-- [ ] scroll context를 구현합니다.
+- [x] `LKListEvents`를 구현합니다.
+- [x] `LKSectionEvents`를 구현합니다.
+- [x] `LKRowEvents`를 구현합니다.
+- [x] `LKSupplementaryEvents`를 구현합니다.
+- [x] row-level handler 우선순위를 구현합니다.
+- [x] section-level handler fallback을 구현합니다.
+- [x] list-level handler fallback을 구현합니다.
+- [x] default behavior fallback을 구현합니다.
+- [x] `LKItemContext`를 구현합니다.
+- [x] `LKAnyItemContext`를 구현합니다.
+- [x] supplementary context를 구현합니다.
+- [x] scroll context를 구현합니다.
 
 완료 기준:
 
-- [ ] handler 우선순위 테스트가 통과합니다.
-- [ ] 없는 handler는 default behavior로 처리됩니다.
-- [ ] context가 최신 snapshot 기준 item/section id를 포함합니다.
+- [x] handler 우선순위 테스트가 통과합니다.
+- [x] 없는 handler는 default behavior로 처리됩니다.
+- [x] context가 최신 snapshot 기준 item/section id를 포함합니다.
 
 ### 11. UICollectionViewDelegate MVP
 
-- [ ] `shouldSelectItemAt`를 `.onShouldSelect`로 연결합니다.
-- [ ] `didSelectItemAt`를 `.onSelect`로 연결합니다.
-- [ ] `shouldDeselectItemAt`를 `.onShouldDeselect`로 연결합니다.
-- [ ] `didDeselectItemAt`를 `.onDeselect`로 연결합니다.
-- [ ] `shouldHighlightItemAt`를 `.onShouldHighlight`로 연결합니다.
-- [ ] `didHighlightItemAt`를 `.onHighlight`로 연결합니다.
-- [ ] `didUnhighlightItemAt`를 `.onUnhighlight`로 연결합니다.
-- [ ] `willDisplay cell`을 `.onWillDisplay`로 연결합니다.
-- [ ] `didEndDisplaying cell`을 `.onDidEndDisplaying`로 연결합니다.
-- [ ] `willDisplaySupplementaryView`를 header/footer display handler로 연결합니다.
-- [ ] `didEndDisplayingSupplementaryView`를 header/footer end display handler로 연결합니다.
+- [x] `shouldSelectItemAt`를 `.onShouldSelect`로 연결합니다.
+- [x] `didSelectItemAt`를 `.onSelect`로 연결합니다.
+- [x] `shouldDeselectItemAt`를 `.onShouldDeselect`로 연결합니다.
+- [x] `didDeselectItemAt`를 `.onDeselect`로 연결합니다.
+- [x] `shouldHighlightItemAt`를 `.onShouldHighlight`로 연결합니다.
+- [x] `didHighlightItemAt`를 `.onHighlight`로 연결합니다.
+- [x] `didUnhighlightItemAt`를 `.onUnhighlight`로 연결합니다.
+- [x] `willDisplay cell`을 `.onWillDisplay`로 연결합니다.
+- [x] `didEndDisplaying cell`을 `.onDidEndDisplaying`로 연결합니다.
+- [x] `willDisplaySupplementaryView`를 header/footer display handler로 연결합니다.
+- [x] `didEndDisplayingSupplementaryView`를 header/footer end display handler로 연결합니다.
 
 완료 기준:
 
-- [ ] 각 delegate callback 단위 테스트 또는 integration 테스트가 통과합니다.
-- [ ] callback context에 item id, section id, indexPath가 포함됩니다.
+- [x] 각 delegate callback 단위 테스트 또는 integration 테스트가 통과합니다.
+- [x] callback context에 item id, section id, indexPath가 포함됩니다.
 
 ### 12. Selection
 

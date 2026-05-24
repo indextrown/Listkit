@@ -24,6 +24,7 @@ private let lkEmptySupplementaryReuseIdentifier = "ListKit.EmptySupplementaryVie
 final class LKCollectionViewAdapter: NSObject {
     private weak var collectionView: UICollectionView?
     private(set) var currentModel: LKListModel
+    private var listEvents: LKListEvents
     private(set) var registeredCellKeys = Set<LKCellRegistrationKey>()
     private(set) var registeredHeaderKeys = Set<LKSupplementaryRegistrationKey>()
     private(set) var registeredFooterKeys = Set<LKSupplementaryRegistrationKey>()
@@ -48,10 +49,12 @@ final class LKCollectionViewAdapter: NSObject {
     init(
         collectionView: UICollectionView,
         model: LKListModel = .empty,
+        listEvents: LKListEvents = LKListEvents(),
         updateEngine: LKUpdateEngine = .reloadData
     ) {
         self.collectionView = collectionView
         self.currentModel = model
+        self.listEvents = listEvents
         self.updateEngine = updateEngine
         self.updateCoordinator = LKUpdateCoordinator(engine: updateEngine)
         super.init()
@@ -64,7 +67,11 @@ final class LKCollectionViewAdapter: NSObject {
         registerReuseIdentifiersIfNeeded(from: model)
     }
 
-    func apply(_ model: LKListModel) {
+    func apply(_ model: LKListModel, listEvents: LKListEvents? = nil) {
+        if let listEvents {
+            self.listEvents = listEvents
+        }
+
         guard isUpdating == false else {
             queuedUpdate = model
             return
@@ -424,6 +431,67 @@ final class LKCollectionViewAdapter: NSObject {
         }
         return nil
     }
+
+    private func itemContext(at indexPath: IndexPath) -> LKAnyItemContext? {
+        guard
+            let sectionIndex = indexPath.lkSection,
+            let section = currentModel.section(at: sectionIndex),
+            let item = currentModel.item(at: indexPath)
+        else {
+            return nil
+        }
+
+        return LKAnyItemContext(
+            id: item.id,
+            item: item.base ?? item.id,
+            indexPath: indexPath,
+            sectionID: section.id
+        )
+    }
+
+    private func itemEventSources(at indexPath: IndexPath) -> (
+        context: LKAnyItemContext,
+        rowEvents: LKRowEvents,
+        sectionEvents: LKSectionEvents
+    )? {
+        guard
+            let context = itemContext(at: indexPath),
+            let sectionIndex = indexPath.lkSection,
+            let section = currentModel.section(at: sectionIndex),
+            let item = currentModel.item(at: indexPath)
+        else {
+            return nil
+        }
+        return (context, item.events, section.events)
+    }
+
+    private func supplementaryContext(kind: String, at indexPath: IndexPath) -> LKSupplementaryContext? {
+        let supplementaryKind: LKSupplementaryKind
+
+        switch kind {
+        case UICollectionView.elementKindSectionHeader:
+            supplementaryKind = .header
+        case UICollectionView.elementKindSectionFooter:
+            supplementaryKind = .footer
+        default:
+            supplementaryKind = .custom(kind)
+        }
+
+        guard
+            let sectionIndex = indexPath.lkSection,
+            let section = currentModel.section(at: sectionIndex),
+            let supplementary = currentModel.supplementary(kind: supplementaryKind, at: indexPath)
+        else {
+            return nil
+        }
+
+        return LKSupplementaryContext(
+            id: supplementary.id,
+            kind: supplementary.kind,
+            indexPath: indexPath,
+            sectionID: section.id
+        )
+    }
 }
 
 extension LKCollectionViewAdapter: UICollectionViewDataSource {
@@ -451,5 +519,149 @@ extension LKCollectionViewAdapter: UICollectionViewDataSource {
     }
 }
 
-extension LKCollectionViewAdapter: UICollectionViewDelegate {}
+extension LKCollectionViewAdapter: UICollectionViewDelegate {
+    func collectionView(_ collectionView: UICollectionView, shouldSelectItemAt indexPath: IndexPath) -> Bool {
+        guard let sources = itemEventSources(at: indexPath) else {
+            return true
+        }
+        return sources.rowEvents.shouldSelect?(sources.context)
+            ?? sources.sectionEvents.shouldSelect?(sources.context)
+            ?? listEvents.shouldSelect?(sources.context)
+            ?? true
+    }
+
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        guard let sources = itemEventSources(at: indexPath) else {
+            return
+        }
+        if let handler = sources.rowEvents.didSelect
+            ?? sources.sectionEvents.didSelect
+            ?? listEvents.didSelect {
+            handler(sources.context)
+        }
+    }
+
+    func collectionView(_ collectionView: UICollectionView, shouldDeselectItemAt indexPath: IndexPath) -> Bool {
+        guard let sources = itemEventSources(at: indexPath) else {
+            return true
+        }
+        return sources.rowEvents.shouldDeselect?(sources.context)
+            ?? sources.sectionEvents.shouldDeselect?(sources.context)
+            ?? listEvents.shouldDeselect?(sources.context)
+            ?? true
+    }
+
+    func collectionView(_ collectionView: UICollectionView, didDeselectItemAt indexPath: IndexPath) {
+        guard let sources = itemEventSources(at: indexPath) else {
+            return
+        }
+        if let handler = sources.rowEvents.didDeselect
+            ?? sources.sectionEvents.didDeselect
+            ?? listEvents.didDeselect {
+            handler(sources.context)
+        }
+    }
+
+    func collectionView(_ collectionView: UICollectionView, shouldHighlightItemAt indexPath: IndexPath) -> Bool {
+        guard let sources = itemEventSources(at: indexPath) else {
+            return true
+        }
+        return sources.rowEvents.shouldHighlight?(sources.context)
+            ?? sources.sectionEvents.shouldHighlight?(sources.context)
+            ?? listEvents.shouldHighlight?(sources.context)
+            ?? true
+    }
+
+    func collectionView(_ collectionView: UICollectionView, didHighlightItemAt indexPath: IndexPath) {
+        guard let sources = itemEventSources(at: indexPath) else {
+            return
+        }
+        if let handler = sources.rowEvents.didHighlight
+            ?? sources.sectionEvents.didHighlight
+            ?? listEvents.didHighlight {
+            handler(sources.context)
+        }
+    }
+
+    func collectionView(_ collectionView: UICollectionView, didUnhighlightItemAt indexPath: IndexPath) {
+        guard let sources = itemEventSources(at: indexPath) else {
+            return
+        }
+        if let handler = sources.rowEvents.didUnhighlight
+            ?? sources.sectionEvents.didUnhighlight
+            ?? listEvents.didUnhighlight {
+            handler(sources.context)
+        }
+    }
+
+    func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        guard let sources = itemEventSources(at: indexPath) else {
+            return
+        }
+        if let handler = sources.rowEvents.willDisplay
+            ?? sources.sectionEvents.willDisplay
+            ?? listEvents.willDisplay {
+            handler(sources.context)
+        }
+    }
+
+    func collectionView(_ collectionView: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        guard let sources = itemEventSources(at: indexPath) else {
+            return
+        }
+        if let handler = sources.rowEvents.didEndDisplaying
+            ?? sources.sectionEvents.didEndDisplaying
+            ?? listEvents.didEndDisplaying {
+            handler(sources.context)
+        }
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        willDisplaySupplementaryView view: UICollectionReusableView,
+        forElementKind elementKind: String,
+        at indexPath: IndexPath
+    ) {
+        guard
+            let context = supplementaryContext(kind: elementKind, at: indexPath),
+            let sectionIndex = indexPath.lkSection,
+            let section = currentModel.section(at: sectionIndex)
+        else {
+            return
+        }
+
+        switch context.kind {
+        case .header:
+            section.headerEvents.willDisplay?(context)
+        case .footer:
+            section.footerEvents.willDisplay?(context)
+        case .custom:
+            break
+        }
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        didEndDisplayingSupplementaryView view: UICollectionReusableView,
+        forElementOfKind elementKind: String,
+        at indexPath: IndexPath
+    ) {
+        guard
+            let context = supplementaryContext(kind: elementKind, at: indexPath),
+            let sectionIndex = indexPath.lkSection,
+            let section = currentModel.section(at: sectionIndex)
+        else {
+            return
+        }
+
+        switch context.kind {
+        case .header:
+            section.headerEvents.didEndDisplaying?(context)
+        case .footer:
+            section.footerEvents.didEndDisplaying?(context)
+        case .custom:
+            break
+        }
+    }
+}
 #endif

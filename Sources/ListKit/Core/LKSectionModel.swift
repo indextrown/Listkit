@@ -5,6 +5,11 @@ public struct LKSectionModel: Equatable {
     public var header: LKSupplementaryModel?
     public var footer: LKSupplementaryModel?
     public var supplementaries: [LKSupplementaryModel]
+    #if canImport(SwiftUI)
+    var events: LKSectionEvents
+    var headerEvents: LKSupplementaryEvents
+    var footerEvents: LKSupplementaryEvents
+    #endif
     #if canImport(UIKit)
     public var layout: LKSectionLayout?
     #endif
@@ -21,6 +26,11 @@ public struct LKSectionModel: Equatable {
         self.header = header
         self.footer = footer
         self.supplementaries = supplementaries
+        #if canImport(SwiftUI)
+        self.events = LKSectionEvents()
+        self.headerEvents = LKSupplementaryEvents()
+        self.footerEvents = LKSupplementaryEvents()
+        #endif
         #if canImport(UIKit)
         self.layout = nil
         #endif
@@ -40,6 +50,11 @@ public struct LKSectionModel: Equatable {
         self.header = header
         self.footer = footer
         self.supplementaries = supplementaries
+        #if canImport(SwiftUI)
+        self.events = LKSectionEvents()
+        self.headerEvents = LKSupplementaryEvents()
+        self.footerEvents = LKSupplementaryEvents()
+        #endif
         self.layout = layout
     }
     #endif

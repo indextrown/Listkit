@@ -175,6 +175,215 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         XCTAssertTrue(didCallFocusHook)
     }
 
+    func testEventRoutingUsesRowHandlerBeforeSectionAndListHandlers() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        var item = LKItemModel(id: "item", base: "row")
+        var rowDidRun = false
+        var sectionDidRun = false
+        var listDidRun = false
+        item.events.shouldSelect = { context in
+            rowDidRun = context.item as? String == "row"
+            return false
+        }
+        var section = LKSectionModel(id: "section", items: [item])
+        section.events.shouldSelect = { _ in
+            sectionDidRun = true
+            return true
+        }
+        var listEvents = LKListEvents()
+        listEvents.shouldSelect = { _ in
+            listDidRun = true
+            return true
+        }
+
+        adapter.apply(LKListModel(sections: [section]), listEvents: listEvents)
+        let shouldSelect = adapter.collectionView(
+            collectionView,
+            shouldSelectItemAt: IndexPath.lkIndexPath(item: 0, section: 0)
+        )
+
+        XCTAssertFalse(shouldSelect)
+        XCTAssertTrue(rowDidRun)
+        XCTAssertFalse(sectionDidRun)
+        XCTAssertFalse(listDidRun)
+    }
+
+    func testEventRoutingFallsBackFromSectionToListToDefaultBehavior() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        var item = LKItemModel(id: "item")
+        var section = LKSectionModel(id: "section", items: [item])
+        var didUseSection = false
+        section.events.shouldHighlight = { _ in
+            didUseSection = true
+            return false
+        }
+        var listEvents = LKListEvents()
+        var didUseList = false
+        listEvents.shouldDeselect = { _ in
+            didUseList = true
+            return false
+        }
+
+        adapter.apply(LKListModel(sections: [section]), listEvents: listEvents)
+
+        XCTAssertFalse(
+            adapter.collectionView(
+                collectionView,
+                shouldHighlightItemAt: IndexPath.lkIndexPath(item: 0, section: 0)
+            )
+        )
+        XCTAssertTrue(didUseSection)
+        XCTAssertFalse(
+            adapter.collectionView(
+                collectionView,
+                shouldDeselectItemAt: IndexPath.lkIndexPath(item: 0, section: 0)
+            )
+        )
+        XCTAssertTrue(didUseList)
+
+        item.events = LKRowEvents()
+        adapter.apply(LKListModel(sections: [LKSectionModel(id: "section", items: [item])]))
+        XCTAssertTrue(
+            adapter.collectionView(
+                collectionView,
+                shouldSelectItemAt: IndexPath.lkIndexPath(item: 0, section: 0)
+            )
+        )
+    }
+
+    func testEventContextUsesLatestSnapshotIdentifiers() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        var listEvents = LKListEvents()
+        var receivedContext: LKAnyItemContext?
+        listEvents.didSelect = { context in
+            receivedContext = context
+        }
+        let first = LKListModel(
+            sections: [
+                LKSectionModel(id: "old", items: [LKItemModel(id: "old-item", base: "old")]),
+            ]
+        )
+        let latest = LKListModel(
+            sections: [
+                LKSectionModel(id: "new", items: [LKItemModel(id: "new-item", base: "new")]),
+            ]
+        )
+
+        adapter.apply(first, listEvents: listEvents)
+        adapter.apply(latest)
+        adapter.collectionView(
+            collectionView,
+            didSelectItemAt: IndexPath.lkIndexPath(item: 0, section: 0)
+        )
+
+        XCTAssertEqual(receivedContext?.id, AnyHashable("new-item"))
+        XCTAssertEqual(receivedContext?.sectionID, AnyHashable("new"))
+        XCTAssertEqual(receivedContext?.item as? String, "new")
+        XCTAssertEqual(receivedContext?.indexPath, IndexPath.lkIndexPath(item: 0, section: 0))
+    }
+
+    func testDelegateCallbacksRouteItemHandlersWithContext() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let indexPath = IndexPath.lkIndexPath(item: 0, section: 0)
+        var item = LKItemModel(id: "item", base: "payload")
+        var routedEvents = [String]()
+        var receivedContext: LKAnyItemContext?
+
+        item.events.didSelect = { context in
+            routedEvents.append("select")
+            receivedContext = context
+        }
+        item.events.didDeselect = { _ in routedEvents.append("deselect") }
+        item.events.didHighlight = { _ in routedEvents.append("highlight") }
+        item.events.didUnhighlight = { _ in routedEvents.append("unhighlight") }
+        item.events.willDisplay = { _ in routedEvents.append("willDisplay") }
+        item.events.didEndDisplaying = { _ in routedEvents.append("didEndDisplaying") }
+
+        adapter.apply(LKListModel(sections: [LKSectionModel(id: "section", items: [item])]))
+        adapter.collectionView(collectionView, didSelectItemAt: indexPath)
+        adapter.collectionView(collectionView, didDeselectItemAt: indexPath)
+        adapter.collectionView(collectionView, didHighlightItemAt: indexPath)
+        adapter.collectionView(collectionView, didUnhighlightItemAt: indexPath)
+        adapter.collectionView(collectionView, willDisplay: UICollectionViewCell(), forItemAt: indexPath)
+        adapter.collectionView(collectionView, didEndDisplaying: UICollectionViewCell(), forItemAt: indexPath)
+
+        XCTAssertEqual(routedEvents, [
+            "select",
+            "deselect",
+            "highlight",
+            "unhighlight",
+            "willDisplay",
+            "didEndDisplaying",
+        ])
+        XCTAssertEqual(receivedContext?.id, AnyHashable("item"))
+        XCTAssertEqual(receivedContext?.sectionID, AnyHashable("section"))
+        XCTAssertEqual(receivedContext?.indexPath, indexPath)
+    }
+
+    func testSupplementaryDisplayCallbacksRouteHeaderAndFooterHandlers() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let indexPath = IndexPath.lkIndexPath(item: 0, section: 0)
+        var section = LKSectionModel(
+            id: "section",
+            header: LKSupplementaryModel(id: "header", kind: .header),
+            footer: LKSupplementaryModel(id: "footer", kind: .footer)
+        )
+        var contexts = [LKSupplementaryContext]()
+        var routedEvents = [String]()
+
+        section.headerEvents.willDisplay = { context in
+            routedEvents.append("headerWillDisplay")
+            contexts.append(context)
+        }
+        section.headerEvents.didEndDisplaying = { _ in routedEvents.append("headerDidEndDisplaying") }
+        section.footerEvents.willDisplay = { context in
+            routedEvents.append("footerWillDisplay")
+            contexts.append(context)
+        }
+        section.footerEvents.didEndDisplaying = { _ in routedEvents.append("footerDidEndDisplaying") }
+
+        adapter.apply(LKListModel(sections: [section]))
+        adapter.collectionView(
+            collectionView,
+            willDisplaySupplementaryView: UICollectionReusableView(),
+            forElementKind: UICollectionView.elementKindSectionHeader,
+            at: indexPath
+        )
+        adapter.collectionView(
+            collectionView,
+            didEndDisplayingSupplementaryView: UICollectionReusableView(),
+            forElementOfKind: UICollectionView.elementKindSectionHeader,
+            at: indexPath
+        )
+        adapter.collectionView(
+            collectionView,
+            willDisplaySupplementaryView: UICollectionReusableView(),
+            forElementKind: UICollectionView.elementKindSectionFooter,
+            at: indexPath
+        )
+        adapter.collectionView(
+            collectionView,
+            didEndDisplayingSupplementaryView: UICollectionReusableView(),
+            forElementOfKind: UICollectionView.elementKindSectionFooter,
+            at: indexPath
+        )
+
+        XCTAssertEqual(routedEvents, [
+            "headerWillDisplay",
+            "headerDidEndDisplaying",
+            "footerWillDisplay",
+            "footerDidEndDisplaying",
+        ])
+        XCTAssertEqual(contexts.map(\.id), [AnyHashable("header"), AnyHashable("footer")])
+        XCTAssertEqual(contexts.map(\.sectionID), [AnyHashable("section"), AnyHashable("section")])
+        XCTAssertEqual(contexts.map(\.indexPath), [indexPath, indexPath])
+    }
+
     func testDiffableDataSourceApplyReflectsInsertDeleteAndMove() async {
         let collectionView = makeCollectionView()
         let adapter = LKCollectionViewAdapter(

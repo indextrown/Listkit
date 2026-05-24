@@ -99,6 +99,29 @@ final class LKSwiftUIAPITests: XCTestCase {
 
         XCTAssertEqual(list.model.sections[0].layout, .grid(columns: 2, spacing: 8))
     }
+
+    func testSectionSupplementaryDisplayModifiersStoreHandlersInModel() {
+        let list = LKList {
+            LKSection(id: "section") {
+                LKRow(id: "item") {
+                    Text("Item")
+                }
+            } header: {
+                Text("Header")
+            } footer: {
+                Text("Footer")
+            }
+            .onWillDisplayHeader { _ in }
+            .onDidEndDisplayingHeader { _ in }
+            .onWillDisplayFooter { _ in }
+            .onDidEndDisplayingFooter { _ in }
+        }
+
+        XCTAssertNotNil(list.model.sections[0].headerEvents.willDisplay)
+        XCTAssertNotNil(list.model.sections[0].headerEvents.didEndDisplaying)
+        XCTAssertNotNil(list.model.sections[0].footerEvents.willDisplay)
+        XCTAssertNotNil(list.model.sections[0].footerEvents.didEndDisplaying)
+    }
     #endif
 }
 #endif

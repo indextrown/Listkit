@@ -17,6 +17,7 @@ public struct LKRow<Item, Content: View> {
         self.item = item
         self.model = LKItemModel(
             id: item[keyPath: id],
+            base: item,
             reuseIdentifier: reuseIdentifier,
             makeContent: { AnyView(content()) }
         )
@@ -32,6 +33,7 @@ public struct LKRow<Item, Content: View> {
         self.item = ()
         self.model = LKItemModel(
             id: id,
+            base: item,
             reuseIdentifier: reuseIdentifier,
             makeContent: { AnyView(content()) }
         )
@@ -56,9 +58,11 @@ public struct LKRow<Item, Content: View> {
             item: item,
             model: LKItemModel(
                 id: model.id,
+                base: model.base,
                 reuseIdentifier: model.reuseIdentifier,
                 hostingStrategy: model.hostingStrategy,
                 contentToken: AnyHashable(token),
+                events: events,
                 makeContent: model.makeContent ?? { AnyView(content(item)) }
             ),
             events: events,
@@ -66,12 +70,74 @@ public struct LKRow<Item, Content: View> {
         )
     }
 
+    public func onShouldSelect(_ handler: @escaping (LKAnyItemContext) -> Bool) -> Self {
+        var events = events
+        events.shouldSelect = handler
+        return replacing(events: events)
+    }
+
+    public func onSelect(_ handler: @escaping (LKAnyItemContext) -> Void) -> Self {
+        var events = events
+        events.didSelect = handler
+        return replacing(events: events)
+    }
+
+    public func onShouldDeselect(_ handler: @escaping (LKAnyItemContext) -> Bool) -> Self {
+        var events = events
+        events.shouldDeselect = handler
+        return replacing(events: events)
+    }
+
+    public func onDeselect(_ handler: @escaping (LKAnyItemContext) -> Void) -> Self {
+        var events = events
+        events.didDeselect = handler
+        return replacing(events: events)
+    }
+
+    public func onShouldHighlight(_ handler: @escaping (LKAnyItemContext) -> Bool) -> Self {
+        var events = events
+        events.shouldHighlight = handler
+        return replacing(events: events)
+    }
+
+    public func onHighlight(_ handler: @escaping (LKAnyItemContext) -> Void) -> Self {
+        var events = events
+        events.didHighlight = handler
+        return replacing(events: events)
+    }
+
+    public func onUnhighlight(_ handler: @escaping (LKAnyItemContext) -> Void) -> Self {
+        var events = events
+        events.didUnhighlight = handler
+        return replacing(events: events)
+    }
+
+    public func onWillDisplay(_ handler: @escaping (LKAnyItemContext) -> Void) -> Self {
+        var events = events
+        events.willDisplay = handler
+        return replacing(events: events)
+    }
+
+    public func onDidEndDisplaying(_ handler: @escaping (LKAnyItemContext) -> Void) -> Self {
+        var events = events
+        events.didEndDisplaying = handler
+        return replacing(events: events)
+    }
+
     func eraseToAnyRow() -> LKAnyRow {
-        LKAnyRow(model: model, events: events)
+        var model = model
+        model.events = events
+        return LKAnyRow(model: model, events: events)
     }
 
     func renderContent() -> Content {
         content(item)
+    }
+
+    private func replacing(events: LKRowEvents) -> Self {
+        var model = model
+        model.events = events
+        return LKRow(item: item, model: model, events: events, content: content)
     }
 }
 #endif

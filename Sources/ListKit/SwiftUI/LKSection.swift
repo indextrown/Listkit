@@ -70,15 +70,18 @@ public struct LKSection {
         self.events = LKSectionEvents()
         self.headerEvents = LKSupplementaryEvents()
         self.footerEvents = LKSupplementaryEvents()
-        self.model = LKSectionModel(
+        var model = LKSectionModel(
             id: id,
             items: rows.map(\.model),
             header: header,
             footer: footer
         )
+        model.events = events
+        model.headerEvents = headerEvents
+        model.footerEvents = footerEvents
+        self.model = model
     }
 
-    #if canImport(UIKit)
     private init(
         model: LKSectionModel,
         events: LKSectionEvents,
@@ -93,6 +96,7 @@ public struct LKSection {
         self.rows = rows
     }
 
+    #if canImport(UIKit)
     public func sectionLayout(_ layout: LKSectionLayout) -> Self {
         var model = model
         model.layout = layout
@@ -105,5 +109,119 @@ public struct LKSection {
         )
     }
     #endif
+
+    public func onShouldSelect(_ handler: @escaping (LKAnyItemContext) -> Bool) -> Self {
+        var events = events
+        events.shouldSelect = handler
+        return replacing(events: events)
+    }
+
+    public func onSelect(_ handler: @escaping (LKAnyItemContext) -> Void) -> Self {
+        var events = events
+        events.didSelect = handler
+        return replacing(events: events)
+    }
+
+    public func onShouldDeselect(_ handler: @escaping (LKAnyItemContext) -> Bool) -> Self {
+        var events = events
+        events.shouldDeselect = handler
+        return replacing(events: events)
+    }
+
+    public func onDeselect(_ handler: @escaping (LKAnyItemContext) -> Void) -> Self {
+        var events = events
+        events.didDeselect = handler
+        return replacing(events: events)
+    }
+
+    public func onShouldHighlight(_ handler: @escaping (LKAnyItemContext) -> Bool) -> Self {
+        var events = events
+        events.shouldHighlight = handler
+        return replacing(events: events)
+    }
+
+    public func onHighlight(_ handler: @escaping (LKAnyItemContext) -> Void) -> Self {
+        var events = events
+        events.didHighlight = handler
+        return replacing(events: events)
+    }
+
+    public func onUnhighlight(_ handler: @escaping (LKAnyItemContext) -> Void) -> Self {
+        var events = events
+        events.didUnhighlight = handler
+        return replacing(events: events)
+    }
+
+    public func onWillDisplay(_ handler: @escaping (LKAnyItemContext) -> Void) -> Self {
+        var events = events
+        events.willDisplay = handler
+        return replacing(events: events)
+    }
+
+    public func onDidEndDisplaying(_ handler: @escaping (LKAnyItemContext) -> Void) -> Self {
+        var events = events
+        events.didEndDisplaying = handler
+        return replacing(events: events)
+    }
+
+    public func onWillDisplayHeader(_ handler: @escaping (LKSupplementaryContext) -> Void) -> Self {
+        var events = headerEvents
+        events.willDisplay = handler
+        return replacing(headerEvents: events)
+    }
+
+    public func onDidEndDisplayingHeader(_ handler: @escaping (LKSupplementaryContext) -> Void) -> Self {
+        var events = headerEvents
+        events.didEndDisplaying = handler
+        return replacing(headerEvents: events)
+    }
+
+    public func onWillDisplayFooter(_ handler: @escaping (LKSupplementaryContext) -> Void) -> Self {
+        var events = footerEvents
+        events.willDisplay = handler
+        return replacing(footerEvents: events)
+    }
+
+    public func onDidEndDisplayingFooter(_ handler: @escaping (LKSupplementaryContext) -> Void) -> Self {
+        var events = footerEvents
+        events.didEndDisplaying = handler
+        return replacing(footerEvents: events)
+    }
+
+    private func replacing(events: LKSectionEvents) -> Self {
+        var model = model
+        model.events = events
+        return Self(
+            model: model,
+            events: events,
+            headerEvents: headerEvents,
+            footerEvents: footerEvents,
+            rows: rows
+        )
+    }
+
+    private func replacing(headerEvents: LKSupplementaryEvents) -> Self {
+        var model = model
+        model.headerEvents = headerEvents
+        return Self(
+            model: model,
+            events: events,
+            headerEvents: headerEvents,
+            footerEvents: footerEvents,
+            rows: rows
+        )
+    }
+
+    private func replacing(footerEvents: LKSupplementaryEvents) -> Self {
+        var model = model
+        model.footerEvents = footerEvents
+        return Self(
+            model: model,
+            events: events,
+            headerEvents: headerEvents,
+            footerEvents: footerEvents,
+            rows: rows
+        )
+    }
 }
 #endif
