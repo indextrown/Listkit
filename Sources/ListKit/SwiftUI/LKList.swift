@@ -11,6 +11,7 @@ public struct LKList<Content: View>: View {
     let selectionConfiguration: LKSelectionConfiguration
     let scrollConfiguration: LKScrollConfiguration
     let refreshConfiguration: LKRefreshConfiguration
+    let diagnosticsMode: LKListKitDiagnosticsMode
     let sections: [LKSection]
     #if canImport(UIKit)
     let style: LKListStyle
@@ -26,6 +27,7 @@ public struct LKList<Content: View>: View {
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
             refreshConfiguration: refreshConfiguration,
+            diagnosticsMode: diagnosticsMode,
             style: style,
             updateEngine: updateEngine
         )
@@ -59,6 +61,7 @@ public struct LKList<Content: View>: View {
         self.selectionConfiguration = LKSelectionConfiguration()
         self.scrollConfiguration = LKScrollConfiguration()
         self.refreshConfiguration = LKRefreshConfiguration()
+        self.diagnosticsMode = .disabled
         self.sections = []
         #if canImport(UIKit)
         self.style = .plain
@@ -74,6 +77,7 @@ public struct LKList<Content: View>: View {
         self.selectionConfiguration = LKSelectionConfiguration()
         self.scrollConfiguration = LKScrollConfiguration()
         self.refreshConfiguration = LKRefreshConfiguration()
+        self.diagnosticsMode = .disabled
         #if canImport(UIKit)
         self.style = .plain
         self.updateEngine = .reloadData
@@ -87,6 +91,7 @@ public struct LKList<Content: View>: View {
         selectionConfiguration: LKSelectionConfiguration,
         scrollConfiguration: LKScrollConfiguration,
         refreshConfiguration: LKRefreshConfiguration,
+        diagnosticsMode: LKListKitDiagnosticsMode,
         sections: [LKSection],
         style: LKListStyle,
         updateEngine: LKUpdateEngine
@@ -96,6 +101,7 @@ public struct LKList<Content: View>: View {
         self.selectionConfiguration = selectionConfiguration
         self.scrollConfiguration = scrollConfiguration
         self.refreshConfiguration = refreshConfiguration
+        self.diagnosticsMode = diagnosticsMode
         self.sections = sections
         self.style = style
         self.updateEngine = updateEngine
@@ -108,6 +114,7 @@ public struct LKList<Content: View>: View {
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
             refreshConfiguration: refreshConfiguration,
+            diagnosticsMode: diagnosticsMode,
             sections: sections,
             style: style,
             updateEngine: updateEngine
@@ -121,6 +128,7 @@ public struct LKList<Content: View>: View {
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
             refreshConfiguration: refreshConfiguration,
+            diagnosticsMode: diagnosticsMode,
             sections: sections,
             style: style,
             updateEngine: updateEngine
@@ -210,6 +218,148 @@ public struct LKList<Content: View>: View {
         return replacing(events: events, scrollConfiguration: scrollConfiguration)
     }
 
+    public func onPrefetch(_ handler: @escaping ([LKAnyItemContext]) -> Void) -> Self {
+        var events = events
+        events.didPrefetch = handler
+        return replacing(events: events)
+    }
+
+    public func onCancelPrefetch(_ handler: @escaping ([LKAnyItemContext]) -> Void) -> Self {
+        var events = events
+        events.didCancelPrefetch = handler
+        return replacing(events: events)
+    }
+
+    public func listKitDiagnostics(_ mode: LKListKitDiagnosticsMode) -> Self {
+        replacing(diagnosticsMode: mode)
+    }
+
+    public func onListKitWarning(_ handler: @escaping (LKListKitWarning) -> Void) -> Self {
+        var events = events
+        events.didEmitWarning = handler
+        return replacing(events: events)
+    }
+
+    public func onCanPerformPrimaryAction(_ handler: @escaping (LKAnyItemContext) -> Bool) -> Self {
+        var events = events
+        events.canPerformPrimaryAction = handler
+        return replacing(events: events)
+    }
+
+    public func onPrimaryAction(_ handler: @escaping (LKAnyItemContext) -> Void) -> Self {
+        var events = events
+        events.didPerformPrimaryAction = handler
+        return replacing(events: events)
+    }
+
+    public func onShouldBeginMultipleSelectionInteraction(_ handler: @escaping (LKAnyItemContext) -> Bool) -> Self {
+        var events = events
+        events.shouldBeginMultipleSelectionInteraction = handler
+        return replacing(events: events)
+    }
+
+    public func onBeginMultipleSelectionInteraction(_ handler: @escaping (LKAnyItemContext) -> Void) -> Self {
+        var events = events
+        events.didBeginMultipleSelectionInteraction = handler
+        return replacing(events: events)
+    }
+
+    public func onEndMultipleSelectionInteraction(_ handler: @escaping () -> Void) -> Self {
+        var events = events
+        events.didEndMultipleSelectionInteraction = handler
+        return replacing(events: events)
+    }
+
+    #if canImport(UIKit)
+    public func uiContextMenuConfiguration(
+        _ handler: @escaping (LKAnyItemContext, CGPoint) -> UIContextMenuConfiguration?
+    ) -> Self {
+        var events = events
+        events.uiContextMenuConfiguration = handler
+        return replacing(events: events)
+    }
+
+    public func onPreviewCommit(
+        _ handler: @escaping (UIContextMenuConfiguration, UIContextMenuInteractionCommitAnimating) -> Void
+    ) -> Self {
+        var events = events
+        events.uiWillPerformPreviewAction = handler
+        return replacing(events: events)
+    }
+
+    public func previewForHighlightingContextMenu(
+        _ handler: @escaping (UIContextMenuConfiguration) -> UITargetedPreview?
+    ) -> Self {
+        var events = events
+        events.uiPreviewForHighlightingContextMenu = handler
+        return replacing(events: events)
+    }
+
+    public func previewForDismissingContextMenu(
+        _ handler: @escaping (UIContextMenuConfiguration) -> UITargetedPreview?
+    ) -> Self {
+        var events = events
+        events.uiPreviewForDismissingContextMenu = handler
+        return replacing(events: events)
+    }
+
+    public func onCanFocus(_ handler: @escaping (LKAnyItemContext) -> Bool) -> Self {
+        var events = events
+        events.canFocus = handler
+        return replacing(events: events)
+    }
+
+    public func onShouldUpdateFocus(_ handler: @escaping (UICollectionViewFocusUpdateContext) -> Bool) -> Self {
+        var events = events
+        events.shouldUpdateFocus = handler
+        return replacing(events: events)
+    }
+
+    public func onDidUpdateFocus(
+        _ handler: @escaping (UICollectionViewFocusUpdateContext, UIFocusAnimationCoordinator) -> Void
+    ) -> Self {
+        var events = events
+        events.didUpdateFocus = handler
+        return replacing(events: events)
+    }
+
+    public func preferredFocusedItem(id: AnyHashable?) -> Self {
+        var events = events
+        events.preferredFocusedItemID = id
+        return replacing(events: events)
+    }
+
+    public func onShouldShowEditMenu(_ handler: @escaping (LKAnyItemContext) -> Bool) -> Self {
+        var events = events
+        events.shouldShowEditMenu = handler
+        return replacing(events: events)
+    }
+
+    public func onCanPerformMenuAction(
+        _ handler: @escaping (LKAnyItemContext, Selector, Any?) -> Bool
+    ) -> Self {
+        var events = events
+        events.canPerformMenuAction = handler
+        return replacing(events: events)
+    }
+
+    public func onPerformMenuAction(
+        _ handler: @escaping (LKAnyItemContext, Selector, Any?) -> Void
+    ) -> Self {
+        var events = events
+        events.performMenuAction = handler
+        return replacing(events: events)
+    }
+
+    public func onShouldSpringLoad(
+        _ handler: @escaping (LKAnyItemContext, UISpringLoadedInteractionContext) -> Bool
+    ) -> Self {
+        var events = events
+        events.shouldSpringLoad = handler
+        return replacing(events: events)
+    }
+    #endif
+
     public func scrollIndicators(_ visibility: LKScrollIndicatorVisibility) -> Self {
         var scrollConfiguration = scrollConfiguration
         scrollConfiguration.indicatorVisibility = visibility
@@ -292,6 +442,7 @@ public struct LKList<Content: View>: View {
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
             refreshConfiguration: refreshConfiguration,
+            diagnosticsMode: diagnosticsMode,
             sections: sections,
             style: style,
             updateEngine: updateEngine
@@ -309,6 +460,7 @@ public struct LKList<Content: View>: View {
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
             refreshConfiguration: refreshConfiguration,
+            diagnosticsMode: diagnosticsMode,
             sections: sections,
             style: style,
             updateEngine: updateEngine
@@ -326,6 +478,7 @@ public struct LKList<Content: View>: View {
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
             refreshConfiguration: refreshConfiguration,
+            diagnosticsMode: diagnosticsMode,
             sections: sections,
             style: style,
             updateEngine: updateEngine
@@ -343,6 +496,7 @@ public struct LKList<Content: View>: View {
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
             refreshConfiguration: refreshConfiguration,
+            diagnosticsMode: diagnosticsMode,
             sections: sections,
             style: style,
             updateEngine: updateEngine
@@ -360,6 +514,25 @@ public struct LKList<Content: View>: View {
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
             refreshConfiguration: refreshConfiguration,
+            diagnosticsMode: diagnosticsMode,
+            sections: sections,
+            style: style,
+            updateEngine: updateEngine
+        )
+        #else
+        self
+        #endif
+    }
+
+    private func replacing(diagnosticsMode: LKListKitDiagnosticsMode) -> Self {
+        #if canImport(UIKit)
+        Self(
+            model: model,
+            events: events,
+            selectionConfiguration: selectionConfiguration,
+            scrollConfiguration: scrollConfiguration,
+            refreshConfiguration: refreshConfiguration,
+            diagnosticsMode: diagnosticsMode,
             sections: sections,
             style: style,
             updateEngine: updateEngine

@@ -2,12 +2,13 @@
 import SwiftUI
 import UIKit
 
-public struct LKCollectionViewRepresentable: UIViewRepresentable {
+struct LKCollectionViewRepresentable: UIViewRepresentable {
     let model: LKListModel
     let listEvents: LKListEvents
     let selectionConfiguration: LKSelectionConfiguration
     let scrollConfiguration: LKScrollConfiguration
     let refreshConfiguration: LKRefreshConfiguration
+    let diagnosticsMode: LKListKitDiagnosticsMode
     let style: LKListStyle
     let updateEngine: LKUpdateEngine
 
@@ -17,6 +18,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
         selectionConfiguration: LKSelectionConfiguration = LKSelectionConfiguration(),
         scrollConfiguration: LKScrollConfiguration = LKScrollConfiguration(),
         refreshConfiguration: LKRefreshConfiguration = LKRefreshConfiguration(),
+        diagnosticsMode: LKListKitDiagnosticsMode = .disabled,
         style: LKListStyle = .plain,
         updateEngine: LKUpdateEngine = .reloadData
     ) {
@@ -25,23 +27,25 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
         self.selectionConfiguration = selectionConfiguration
         self.scrollConfiguration = scrollConfiguration
         self.refreshConfiguration = refreshConfiguration
+        self.diagnosticsMode = diagnosticsMode
         self.style = style
         self.updateEngine = updateEngine
     }
 
-    public func makeCoordinator() -> Coordinator {
+    func makeCoordinator() -> Coordinator {
         Coordinator(
             model: model,
             listEvents: listEvents,
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
             refreshConfiguration: refreshConfiguration,
+            diagnosticsMode: diagnosticsMode,
             style: style,
             updateEngine: updateEngine
         )
     }
 
-    public func makeUIView(context: Context) -> UICollectionView {
+    func makeUIView(context: Context) -> UICollectionView {
         let collectionView = UICollectionView(
             frame: .zero,
             collectionViewLayout: LKCollectionLayoutProvider.makeLayout(
@@ -54,7 +58,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
         return collectionView
     }
 
-    public func updateUIView(_ collectionView: UICollectionView, context: Context) {
+    func updateUIView(_ collectionView: UICollectionView, context: Context) {
         context.coordinator.installIfNeeded(on: collectionView)
         context.coordinator.apply(
             model,
@@ -62,19 +66,21 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
             selectionConfiguration: selectionConfiguration,
             scrollConfiguration: scrollConfiguration,
             refreshConfiguration: refreshConfiguration,
+            diagnosticsMode: diagnosticsMode,
             style: style,
             updateEngine: updateEngine,
             to: collectionView
         )
     }
 
-    public final class Coordinator {
+    final class Coordinator {
         private var adapter: LKCollectionViewAdapter?
         private var pendingModel: LKListModel
         private var pendingListEvents: LKListEvents
         private var pendingSelectionConfiguration: LKSelectionConfiguration
         private var pendingScrollConfiguration: LKScrollConfiguration
         private var pendingRefreshConfiguration: LKRefreshConfiguration
+        private var pendingDiagnosticsMode: LKListKitDiagnosticsMode
         private var pendingStyle: LKListStyle
         private var pendingUpdateEngine: LKUpdateEngine
         private var layoutSignature: String
@@ -85,6 +91,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
             selectionConfiguration: LKSelectionConfiguration,
             scrollConfiguration: LKScrollConfiguration,
             refreshConfiguration: LKRefreshConfiguration,
+            diagnosticsMode: LKListKitDiagnosticsMode,
             style: LKListStyle,
             updateEngine: LKUpdateEngine
         ) {
@@ -93,6 +100,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
             self.pendingSelectionConfiguration = selectionConfiguration
             self.pendingScrollConfiguration = scrollConfiguration
             self.pendingRefreshConfiguration = refreshConfiguration
+            self.pendingDiagnosticsMode = diagnosticsMode
             self.pendingStyle = style
             self.pendingUpdateEngine = updateEngine
             self.layoutSignature = ""
@@ -110,6 +118,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
                 selectionConfiguration: pendingSelectionConfiguration,
                 scrollConfiguration: pendingScrollConfiguration,
                 refreshConfiguration: pendingRefreshConfiguration,
+                diagnosticsMode: pendingDiagnosticsMode,
                 updateEngine: pendingUpdateEngine
             )
         }
@@ -121,6 +130,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
             selectionConfiguration: LKSelectionConfiguration,
             scrollConfiguration: LKScrollConfiguration,
             refreshConfiguration: LKRefreshConfiguration,
+            diagnosticsMode: LKListKitDiagnosticsMode,
             style: LKListStyle,
             updateEngine: LKUpdateEngine,
             to collectionView: UICollectionView
@@ -130,6 +140,7 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
             pendingSelectionConfiguration = selectionConfiguration
             pendingScrollConfiguration = scrollConfiguration
             pendingRefreshConfiguration = refreshConfiguration
+            pendingDiagnosticsMode = diagnosticsMode
             pendingStyle = style
             pendingUpdateEngine = updateEngine
             updateLayoutIfNeeded(model: model, style: style, collectionView: collectionView)
@@ -138,7 +149,8 @@ public struct LKCollectionViewRepresentable: UIViewRepresentable {
                 listEvents: listEvents,
                 selectionConfiguration: selectionConfiguration,
                 scrollConfiguration: scrollConfiguration,
-                refreshConfiguration: refreshConfiguration
+                refreshConfiguration: refreshConfiguration,
+                diagnosticsMode: diagnosticsMode
             )
         }
 

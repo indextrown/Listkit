@@ -76,6 +76,32 @@ final class LKSwiftUIAPITests: XCTestCase {
         ])
     }
 
+    func testListKitEnvironmentValuesDefaultAndSetBehavior() {
+        var values = EnvironmentValues()
+
+        XCTAssertFalse(values.listKitIsSelected)
+        XCTAssertFalse(values.listKitIsHighlighted)
+        XCTAssertFalse(values.listKitIsFocused)
+        XCTAssertNil(values.listKitIndexPath)
+        XCTAssertNil(values.listKitSectionID)
+        XCTAssertNil(values.listKitItemID)
+
+        values.listKitIsSelected = true
+        values.listKitIsHighlighted = true
+        values.listKitIsFocused = true
+        values.listKitIndexPath = IndexPath.lkIndexPath(item: 1, section: 2)
+        values.listKitSectionID = AnyHashable("section")
+        values.listKitItemID = AnyHashable("item")
+
+        XCTAssertEqual(
+            values.lkCellState,
+            LKCellState(isSelected: true, isHighlighted: true, isFocused: true)
+        )
+        XCTAssertEqual(values.listKitIndexPath, IndexPath.lkIndexPath(item: 1, section: 2))
+        XCTAssertEqual(values.listKitSectionID, AnyHashable("section"))
+        XCTAssertEqual(values.listKitItemID, AnyHashable("item"))
+    }
+
     #if canImport(UIKit)
     func testListStyleModifierStoresStyle() {
         let list = LKList {
@@ -183,6 +209,102 @@ final class LKSwiftUIAPITests: XCTestCase {
         XCTAssertEqual(list.scrollConfiguration.keyboardDismissMode, UIScrollView.KeyboardDismissMode.onDrag.rawValue)
         XCTAssertEqual(list.scrollConfiguration.contentInsets, LKEdgeInsets(top: 1, left: 2, bottom: 3, right: 4))
         XCTAssertEqual(list.scrollConfiguration.reachEndThreshold, .points(120))
+    }
+
+    func testPrefetchModifiersStoreEvents() {
+        let list = LKList([Message(id: 1, title: "One")], id: \.id) { message in
+            Text(message.title)
+        }
+        .onPrefetch { _ in }
+        .onCancelPrefetch { _ in }
+
+        XCTAssertNotNil(list.events.didPrefetch)
+        XCTAssertNotNil(list.events.didCancelPrefetch)
+    }
+
+    func testDiagnosticsModifiersStoreModeAndWarningHandler() {
+        let list = LKList([Message(id: 1, title: "One")], id: \.id) { message in
+            Text(message.title)
+        }
+        .listKitDiagnostics(.enabled)
+        .onListKitWarning { _ in }
+
+        XCTAssertEqual(list.diagnosticsMode, .enabled)
+        XCTAssertNotNil(list.events.didEmitWarning)
+    }
+
+    func testModifierMergePreservesPreviouslyStoredConfiguration() {
+        var selectedIDs = Set<Int>()
+        let selection = Binding<Set<Int>>(
+            get: { selectedIDs },
+            set: { selectedIDs = $0 }
+        )
+
+        let list = LKList([Message(id: 1, title: "One")], id: \.id) { message in
+            Text(message.title)
+        }
+        .selection(selection)
+        .selectionMode(.multiple)
+        .onSelect { _ in }
+        .onScroll { _ in }
+        .onReachEnd(threshold: .points(42)) {}
+        .refreshable {}
+        .listKitDiagnostics(.enabled)
+        .onListKitWarning { _ in }
+        .listKitStyle(.grouped)
+        .updateEngine(.diffableDataSource)
+
+        XCTAssertEqual(list.selectionConfiguration.mode, .multiple)
+        XCTAssertNotNil(list.events.didSelect)
+        XCTAssertNotNil(list.events.didScroll)
+        XCTAssertNotNil(list.events.didReachEnd)
+        XCTAssertEqual(list.scrollConfiguration.reachEndThreshold, .points(42))
+        XCTAssertTrue(list.refreshConfiguration.isEnabled)
+        XCTAssertEqual(list.diagnosticsMode, .enabled)
+        XCTAssertNotNil(list.events.didEmitWarning)
+        XCTAssertEqual(list.style, .grouped)
+        XCTAssertEqual(list.updateEngine, .diffableDataSource)
+    }
+
+    func testAdvancedDelegateModifiersStoreEvents() {
+        let list = LKList([Message(id: 1, title: "One")], id: \.id) { message in
+            Text(message.title)
+        }
+        .uiContextMenuConfiguration { _, _ in nil }
+        .onPreviewCommit { _, _ in }
+        .previewForHighlightingContextMenu { _ in nil }
+        .previewForDismissingContextMenu { _ in nil }
+        .onCanPerformPrimaryAction { _ in true }
+        .onPrimaryAction { _ in }
+        .onShouldBeginMultipleSelectionInteraction { _ in true }
+        .onBeginMultipleSelectionInteraction { _ in }
+        .onEndMultipleSelectionInteraction {}
+        .onCanFocus { _ in true }
+        .onShouldUpdateFocus { _ in true }
+        .onDidUpdateFocus { _, _ in }
+        .preferredFocusedItem(id: 1)
+        .onShouldShowEditMenu { _ in true }
+        .onCanPerformMenuAction { _, _, _ in true }
+        .onPerformMenuAction { _, _, _ in }
+        .onShouldSpringLoad { _, _ in true }
+
+        XCTAssertNotNil(list.events.uiContextMenuConfiguration)
+        XCTAssertNotNil(list.events.uiWillPerformPreviewAction)
+        XCTAssertNotNil(list.events.uiPreviewForHighlightingContextMenu)
+        XCTAssertNotNil(list.events.uiPreviewForDismissingContextMenu)
+        XCTAssertNotNil(list.events.canPerformPrimaryAction)
+        XCTAssertNotNil(list.events.didPerformPrimaryAction)
+        XCTAssertNotNil(list.events.shouldBeginMultipleSelectionInteraction)
+        XCTAssertNotNil(list.events.didBeginMultipleSelectionInteraction)
+        XCTAssertNotNil(list.events.didEndMultipleSelectionInteraction)
+        XCTAssertNotNil(list.events.canFocus)
+        XCTAssertNotNil(list.events.shouldUpdateFocus)
+        XCTAssertNotNil(list.events.didUpdateFocus)
+        XCTAssertEqual(list.events.preferredFocusedItemID, AnyHashable(1))
+        XCTAssertNotNil(list.events.shouldShowEditMenu)
+        XCTAssertNotNil(list.events.canPerformMenuAction)
+        XCTAssertNotNil(list.events.performMenuAction)
+        XCTAssertNotNil(list.events.shouldSpringLoad)
     }
 
     func testRefreshModifiersStoreConfiguration() {

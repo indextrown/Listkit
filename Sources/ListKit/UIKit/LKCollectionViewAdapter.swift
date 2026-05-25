@@ -28,9 +28,11 @@ final class LKCollectionViewAdapter: NSObject {
     private var selectionConfiguration: LKSelectionConfiguration
     private var scrollConfiguration: LKScrollConfiguration
     private var refreshConfiguration: LKRefreshConfiguration
+    private var diagnosticsMode: LKListKitDiagnosticsMode
     private var isReachEndArmed = true
     private var lastReachEndContentSize: CGSize?
     private var isRefreshActionRunning = false
+    private(set) var prefetchedItemIDs = Set<AnyHashable>()
     private(set) var registeredCellKeys = Set<LKCellRegistrationKey>()
     private(set) var registeredHeaderKeys = Set<LKSupplementaryRegistrationKey>()
     private(set) var registeredFooterKeys = Set<LKSupplementaryRegistrationKey>()
@@ -59,6 +61,7 @@ final class LKCollectionViewAdapter: NSObject {
         selectionConfiguration: LKSelectionConfiguration = LKSelectionConfiguration(),
         scrollConfiguration: LKScrollConfiguration = LKScrollConfiguration(),
         refreshConfiguration: LKRefreshConfiguration = LKRefreshConfiguration(),
+        diagnosticsMode: LKListKitDiagnosticsMode = .disabled,
         updateEngine: LKUpdateEngine = .reloadData
     ) {
         self.collectionView = collectionView
@@ -67,10 +70,12 @@ final class LKCollectionViewAdapter: NSObject {
         self.selectionConfiguration = selectionConfiguration
         self.scrollConfiguration = scrollConfiguration
         self.refreshConfiguration = refreshConfiguration
+        self.diagnosticsMode = diagnosticsMode
         self.updateEngine = updateEngine
         self.updateCoordinator = LKUpdateCoordinator(engine: updateEngine)
         super.init()
         collectionView.delegate = self
+        collectionView.prefetchDataSource = self
         configureSelectionBehavior(on: collectionView)
         configureScrollBehavior(on: collectionView)
         configureRefreshControl(on: collectionView)
@@ -87,7 +92,8 @@ final class LKCollectionViewAdapter: NSObject {
         listEvents: LKListEvents? = nil,
         selectionConfiguration: LKSelectionConfiguration? = nil,
         scrollConfiguration: LKScrollConfiguration? = nil,
-        refreshConfiguration: LKRefreshConfiguration? = nil
+        refreshConfiguration: LKRefreshConfiguration? = nil,
+        diagnosticsMode: LKListKitDiagnosticsMode? = nil
     ) {
         if let listEvents {
             self.listEvents = listEvents
@@ -101,9 +107,13 @@ final class LKCollectionViewAdapter: NSObject {
         if let refreshConfiguration {
             self.refreshConfiguration = refreshConfiguration
         }
+        if let diagnosticsMode {
+            self.diagnosticsMode = diagnosticsMode
+        }
         configureSelectionBehavior(on: collectionView)
         configureScrollBehavior(on: collectionView)
         configureRefreshControl(on: collectionView)
+        emitApplyWarnings(for: model)
 
         guard isUpdating == false else {
             queuedUpdate = model
@@ -118,6 +128,7 @@ final class LKCollectionViewAdapter: NSObject {
         case .differenceKit:
             applyDifferenceKit(model)
             synchronizeSelectionAfterApply(model: currentModel)
+            prunePrefetchCache(model: currentModel)
             finishApply()
         case .reloadData:
             updateCoordinator.apply(
@@ -138,6 +149,7 @@ final class LKCollectionViewAdapter: NSObject {
                 }
             )
             synchronizeSelectionAfterApply(model: currentModel)
+            prunePrefetchCache(model: currentModel)
             finishApply()
         }
     }
@@ -155,6 +167,31 @@ final class LKCollectionViewAdapter: NSObject {
                 apply(queuedUpdate)
             }
         }
+    }
+
+    private func emitApplyWarnings(for model: LKListModel) {
+        for warning in model.validationWarnings() {
+            emitWarning(LKListKitWarning(warning))
+        }
+
+        for section in model.sections {
+            guard case let .grid(columns, _) = section.layout, columns < 1 else {
+                continue
+            }
+            emitWarning(
+                .unsupportedLayout(
+                    sectionID: section.id,
+                    reason: "Grid layout requires at least one column. ListKit will clamp the column count to 1."
+                )
+            )
+        }
+    }
+
+    private func emitWarning(_ warning: LKListKitWarning) {
+        guard diagnosticsMode == .enabled else {
+            return
+        }
+        listEvents.didEmitWarning?(warning)
     }
 
     private func applyDifferenceKit(_ model: LKListModel) {
@@ -204,6 +241,12 @@ final class LKCollectionViewAdapter: NSObject {
 
         if didFallbackFromDifferenceKit {
             currentModel = model
+            emitWarning(
+                .diffFailure(
+                    engine: .differenceKit,
+                    reason: "DifferenceKit changeset exceeded the animated update threshold and fell back to reload data."
+                )
+            )
         }
         restoreSelection(selectedItemIDs, in: collectionView, model: currentModel)
         restoreFocus(in: collectionView)
@@ -337,6 +380,7 @@ final class LKCollectionViewAdapter: NSObject {
             guard let self else { return }
             self.restoreSelection(selectedItemIDs, in: self.collectionView, model: model)
             self.synchronizeSelectionAfterApply(model: model)
+            self.prunePrefetchCache(model: model)
             self.restoreFocus(in: self.collectionView)
             self.diffableApplyCompletionHandler?()
             self.finishApply()
@@ -347,7 +391,11 @@ final class LKCollectionViewAdapter: NSObject {
         _ collectionView: UICollectionView,
         at indexPath: IndexPath
     ) -> UICollectionViewCell {
-        guard let item = currentModel.item(at: indexPath) else {
+        guard
+            let sectionIndex = indexPath.lkSection,
+            let section = currentModel.section(at: sectionIndex),
+            let item = currentModel.item(at: indexPath)
+        else {
             return UICollectionViewCell()
         }
 
@@ -355,7 +403,11 @@ final class LKCollectionViewAdapter: NSObject {
             withReuseIdentifier: item.reuseIdentifier,
             for: indexPath
         )
-        (cell as? LKHostingCollectionViewCell)?.render(item: item) { [weak self] size in
+        (cell as? LKHostingCollectionViewCell)?.render(
+            item: item,
+            indexPath: indexPath,
+            sectionID: section.id
+        ) { [weak self] size in
             self?.recordItemSize(size, at: indexPath)
         }
         return cell
@@ -536,6 +588,13 @@ final class LKCollectionViewAdapter: NSObject {
         return normalized
     }
 
+    private func prunePrefetchCache(model: LKListModel) {
+        let liveItemIDs = Set(model.sections.flatMap { section in
+            section.items.map(\.id)
+        })
+        prefetchedItemIDs.formIntersection(liveItemIDs)
+    }
+
     private func applySelection(
         _ selectedIDs: [AnyHashable],
         to collectionView: UICollectionView,
@@ -681,9 +740,16 @@ final class LKCollectionViewAdapter: NSObject {
     private func itemContext(at indexPath: IndexPath) -> LKAnyItemContext? {
         guard
             let sectionIndex = indexPath.lkSection,
-            let section = currentModel.section(at: sectionIndex),
+            let section = currentModel.section(at: sectionIndex)
+        else {
+            emitWarning(.invalidLookup(kind: .section, indexPath: indexPath))
+            return nil
+        }
+
+        guard
             let item = currentModel.item(at: indexPath)
         else {
+            emitWarning(.invalidLookup(kind: .item, indexPath: indexPath))
             return nil
         }
 
@@ -693,6 +759,10 @@ final class LKCollectionViewAdapter: NSObject {
             indexPath: indexPath,
             sectionID: section.id
         )
+    }
+
+    private func itemContexts(at indexPaths: [IndexPath]) -> [LKAnyItemContext] {
+        indexPaths.compactMap { itemContext(at: $0) }
     }
 
     private func itemEventSources(at indexPath: IndexPath) -> (
@@ -725,9 +795,16 @@ final class LKCollectionViewAdapter: NSObject {
 
         guard
             let sectionIndex = indexPath.lkSection,
-            let section = currentModel.section(at: sectionIndex),
+            let section = currentModel.section(at: sectionIndex)
+        else {
+            emitWarning(.invalidLookup(kind: .section, indexPath: indexPath))
+            return nil
+        }
+
+        guard
             let supplementary = currentModel.supplementary(kind: supplementaryKind, at: indexPath)
         else {
+            emitWarning(.invalidLookup(kind: .supplementary, indexPath: indexPath))
             return nil
         }
 
@@ -762,6 +839,32 @@ extension LKCollectionViewAdapter: UICollectionViewDataSource {
         at indexPath: IndexPath
     ) -> UICollectionReusableView {
         makeSupplementaryView(collectionView, kind: kind, at: indexPath)
+    }
+}
+
+extension LKCollectionViewAdapter: UICollectionViewDataSourcePrefetching {
+    func collectionView(_ collectionView: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
+        let contexts = itemContexts(at: indexPaths)
+        guard contexts.isEmpty == false else {
+            return
+        }
+
+        for context in contexts {
+            prefetchedItemIDs.insert(context.id)
+        }
+        listEvents.didPrefetch?(contexts)
+    }
+
+    func collectionView(_ collectionView: UICollectionView, cancelPrefetchingForItemsAt indexPaths: [IndexPath]) {
+        let contexts = itemContexts(at: indexPaths)
+        guard contexts.isEmpty == false else {
+            return
+        }
+
+        for context in contexts {
+            prefetchedItemIDs.remove(context.id)
+        }
+        listEvents.didCancelPrefetch?(contexts)
     }
 }
 
@@ -910,6 +1013,149 @@ extension LKCollectionViewAdapter: UICollectionViewDelegate {
         case .custom:
             break
         }
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        contextMenuConfigurationForItemAt indexPath: IndexPath,
+        point: CGPoint
+    ) -> UIContextMenuConfiguration? {
+        guard let context = itemContext(at: indexPath) else {
+            return nil
+        }
+        return listEvents.uiContextMenuConfiguration?(context, point)
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        willPerformPreviewActionForMenuWith configuration: UIContextMenuConfiguration,
+        animator: UIContextMenuInteractionCommitAnimating
+    ) {
+        listEvents.uiWillPerformPreviewAction?(configuration, animator)
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        previewForHighlightingContextMenuWithConfiguration configuration: UIContextMenuConfiguration
+    ) -> UITargetedPreview? {
+        listEvents.uiPreviewForHighlightingContextMenu?(configuration)
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        previewForDismissingContextMenuWithConfiguration configuration: UIContextMenuConfiguration
+    ) -> UITargetedPreview? {
+        listEvents.uiPreviewForDismissingContextMenu?(configuration)
+    }
+
+    func collectionView(_ collectionView: UICollectionView, canPerformPrimaryActionForItemAt indexPath: IndexPath) -> Bool {
+        guard let context = itemContext(at: indexPath) else {
+            return false
+        }
+        return listEvents.canPerformPrimaryAction?(context) ?? true
+    }
+
+    func collectionView(_ collectionView: UICollectionView, performPrimaryActionForItemAt indexPath: IndexPath) {
+        guard let context = itemContext(at: indexPath) else {
+            return
+        }
+        listEvents.didPerformPrimaryAction?(context)
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        shouldBeginMultipleSelectionInteractionAt indexPath: IndexPath
+    ) -> Bool {
+        guard let context = itemContext(at: indexPath) else {
+            return false
+        }
+        return listEvents.shouldBeginMultipleSelectionInteraction?(context)
+            ?? (selectionConfiguration.mode == .multiple)
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        didBeginMultipleSelectionInteractionAt indexPath: IndexPath
+    ) {
+        guard let context = itemContext(at: indexPath) else {
+            return
+        }
+        listEvents.didBeginMultipleSelectionInteraction?(context)
+    }
+
+    func collectionViewDidEndMultipleSelectionInteraction(_ collectionView: UICollectionView) {
+        listEvents.didEndMultipleSelectionInteraction?()
+    }
+
+    func collectionView(_ collectionView: UICollectionView, canFocusItemAt indexPath: IndexPath) -> Bool {
+        guard let context = itemContext(at: indexPath) else {
+            return false
+        }
+        return listEvents.canFocus?(context) ?? true
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        shouldUpdateFocusIn context: UICollectionViewFocusUpdateContext
+    ) -> Bool {
+        listEvents.shouldUpdateFocus?(context) ?? true
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        didUpdateFocusIn context: UICollectionViewFocusUpdateContext,
+        with coordinator: UIFocusAnimationCoordinator
+    ) {
+        listEvents.didUpdateFocus?(context, coordinator)
+    }
+
+    func indexPathForPreferredFocusedView(in collectionView: UICollectionView) -> IndexPath? {
+        guard let preferredFocusedItemID = listEvents.preferredFocusedItemID else {
+            return nil
+        }
+        return indexPath(forItemID: preferredFocusedItemID, in: currentModel)
+    }
+
+    func collectionView(_ collectionView: UICollectionView, shouldShowMenuForItemAt indexPath: IndexPath) -> Bool {
+        guard let context = itemContext(at: indexPath) else {
+            return false
+        }
+        return listEvents.shouldShowEditMenu?(context) ?? false
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        canPerformAction action: Selector,
+        forItemAt indexPath: IndexPath,
+        withSender sender: Any?
+    ) -> Bool {
+        guard let context = itemContext(at: indexPath) else {
+            return false
+        }
+        return listEvents.canPerformMenuAction?(context, action, sender) ?? false
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        performAction action: Selector,
+        forItemAt indexPath: IndexPath,
+        withSender sender: Any?
+    ) {
+        guard let context = itemContext(at: indexPath) else {
+            return
+        }
+        listEvents.performMenuAction?(context, action, sender)
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        shouldSpringLoadItemAt indexPath: IndexPath,
+        with context: UISpringLoadedInteractionContext
+    ) -> Bool {
+        guard let itemContext = itemContext(at: indexPath) else {
+            return false
+        }
+        return listEvents.shouldSpringLoad?(itemContext, context) ?? true
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {

@@ -6,6 +6,29 @@ import SwiftUI
 
 @MainActor
 final class LKCollectionViewAdapterTests: XCTestCase {
+    private struct EnvironmentProbeView: View {
+        @Environment(\.listKitIsSelected) private var isSelected
+        @Environment(\.listKitIsHighlighted) private var isHighlighted
+        @Environment(\.listKitIsFocused) private var isFocused
+        @Environment(\.listKitIndexPath) private var indexPath
+        @Environment(\.listKitSectionID) private var sectionID
+        @Environment(\.listKitItemID) private var itemID
+
+        let onRead: (
+            Bool,
+            Bool,
+            Bool,
+            IndexPath?,
+            AnyHashable?,
+            AnyHashable?
+        ) -> Void
+
+        var body: some View {
+            onRead(isSelected, isHighlighted, isFocused, indexPath, sectionID, itemID)
+            return Text("Probe")
+        }
+    }
+
     func testRegistrationKeysAreNotDuplicatedAcrossApplies() {
         let collectionView = makeCollectionView()
         let adapter = LKCollectionViewAdapter(collectionView: collectionView)
@@ -124,6 +147,27 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         ) as? LKHostingCollectionViewCell
 
         XCTAssertEqual(cell?.renderedItemID, AnyHashable("latest"))
+    }
+
+    func testDequeuedCellReceivesListKitEnvironmentMetadata() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let indexPath = IndexPath.lkIndexPath(item: 1, section: 0)
+        let model = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "one"),
+                    LKItemModel(id: "two"),
+                ]),
+            ]
+        )
+
+        adapter.apply(model)
+        let cell = adapter.collectionView(collectionView, cellForItemAt: indexPath) as? LKHostingCollectionViewCell
+
+        XCTAssertEqual(cell?.renderedItemID, AnyHashable("two"))
+        XCTAssertEqual(cell?.renderedIndexPath, indexPath)
+        XCTAssertEqual(cell?.renderedSectionID, AnyHashable("section"))
     }
 
     func testReloadDataRestoresSelectionByItemIdentity() {
@@ -987,8 +1031,15 @@ final class LKCollectionViewAdapterTests: XCTestCase {
     func testDifferenceKitFallsBackToReloadDataForLargeChangeset() {
         let collectionView = makeCollectionView()
         let window = makeVisibleWindow(for: collectionView)
+        var events = LKListEvents()
+        var warnings = [LKListKitWarning]()
+        events.didEmitWarning = { warning in
+            warnings.append(warning)
+        }
         let adapter = LKCollectionViewAdapter(
             collectionView: collectionView,
+            listEvents: events,
+            diagnosticsMode: .enabled,
             updateEngine: .differenceKit
         )
         let original = LKListModel(
@@ -1012,8 +1063,120 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         adapter.apply(large)
 
         XCTAssertTrue(adapter.didFallbackFromDifferenceKit)
+        XCTAssertTrue(
+            warnings.contains(
+                .diffFailure(
+                    engine: .differenceKit,
+                    reason: "DifferenceKit changeset exceeded the animated update threshold and fell back to reload data."
+                )
+            )
+        )
         XCTAssertEqual(adapter.currentModel.sections.first?.items.count, 800)
         _ = window
+    }
+
+    func testDiagnosticsMapsDuplicateValidationWarnings() {
+        XCTAssertEqual(
+            LKListKitWarning(.duplicateSectionID("section")),
+            .duplicateSectionID("section")
+        )
+        XCTAssertEqual(
+            LKListKitWarning(.duplicateItemID(sectionID: "section", itemID: "item")),
+            .duplicateItemID(sectionID: "section", itemID: "item")
+        )
+    }
+
+    func testDiagnosticsEmitInvalidLookupAndUnsupportedLayoutWarnings() {
+        let collectionView = makeCollectionView()
+        var events = LKListEvents()
+        var warnings = [LKListKitWarning]()
+        events.didEmitWarning = { warning in
+            warnings.append(warning)
+        }
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            listEvents: events,
+            diagnosticsMode: .enabled
+        )
+        let unsupportedModel = LKListModel(
+            sections: [
+                LKSectionModel(
+                    id: "section",
+                    items: [
+                        LKItemModel(id: "item"),
+                    ],
+                    layout: .grid(columns: 0, spacing: 8)
+                )
+            ]
+        )
+
+        adapter.apply(unsupportedModel)
+        _ = adapter.collectionView(
+            collectionView,
+            shouldSelectItemAt: IndexPath.lkIndexPath(item: 0, section: 99)
+        )
+        _ = adapter.collectionView(
+            collectionView,
+            shouldSelectItemAt: IndexPath.lkIndexPath(item: 99, section: 0)
+        )
+        adapter.collectionView(
+            collectionView,
+            willDisplaySupplementaryView: UICollectionReusableView(),
+            forElementKind: UICollectionView.elementKindSectionHeader,
+            at: IndexPath.lkIndexPath(item: 0, section: 0)
+        )
+
+        XCTAssertTrue(
+            warnings.contains(
+                .unsupportedLayout(
+                    sectionID: "section",
+                    reason: "Grid layout requires at least one column. ListKit will clamp the column count to 1."
+                )
+            )
+        )
+        XCTAssertTrue(
+            warnings.contains(
+                .invalidLookup(kind: .section, indexPath: IndexPath.lkIndexPath(item: 0, section: 99))
+            )
+        )
+        XCTAssertTrue(
+            warnings.contains(
+                .invalidLookup(kind: .item, indexPath: IndexPath.lkIndexPath(item: 99, section: 0))
+            )
+        )
+        XCTAssertTrue(
+            warnings.contains(
+                .invalidLookup(kind: .supplementary, indexPath: IndexPath.lkIndexPath(item: 0, section: 0))
+            )
+        )
+    }
+
+    func testDiagnosticsDisabledSuppressesRuntimeWarningsWhileFallbackStillWorks() {
+        let collectionView = makeCollectionView()
+        var events = LKListEvents()
+        var warnings = [LKListKitWarning]()
+        events.didEmitWarning = { warning in
+            warnings.append(warning)
+        }
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            listEvents: events,
+            diagnosticsMode: .disabled
+        )
+        let model = LKListModel(
+            sections: [
+                LKSectionModel(
+                    id: "section",
+                    items: [LKItemModel(id: "item")],
+                    layout: .grid(columns: 0, spacing: 8)
+                ),
+            ]
+        )
+
+        adapter.apply(model)
+
+        XCTAssertTrue(warnings.isEmpty)
+        XCTAssertEqual(adapter.currentModel.sections.first?.items.count, 1)
     }
 
     func testDequeuedCellRendersSwiftUIContentConfiguration() {
@@ -1089,6 +1252,66 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         )
     }
 
+    func testCellStateChangeUpdatesContentConfigurationWithoutReload() {
+        let cell = LKHostingCollectionViewCell(frame: .zero)
+        let item = LKItemModel(id: "item") {
+            AnyView(Text("Row"))
+        }
+
+        cell.render(item: item)
+        let initialConfiguration = cell.contentConfiguration
+
+        cell.isSelected = true
+        cell.setNeedsUpdateConfiguration()
+        cell.updateConfiguration(using: cell.configurationState)
+
+        XCTAssertNotNil(initialConfiguration)
+        XCTAssertNotNil(cell.contentConfiguration)
+        XCTAssertEqual(cell.renderedState, LKCellState(isSelected: true))
+    }
+
+    func testRowContentCanReadListKitEnvironmentValues() {
+        let cell = LKHostingCollectionViewCell(frame: CGRect(x: 0, y: 0, width: 320, height: 44))
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 320, height: 44))
+        let viewController = UIViewController()
+        var reads = [(
+            Bool,
+            Bool,
+            Bool,
+            IndexPath?,
+            AnyHashable?,
+            AnyHashable?
+        )]()
+        let item = LKItemModel(id: "item") {
+            AnyView(EnvironmentProbeView { isSelected, isHighlighted, isFocused, indexPath, sectionID, itemID in
+                reads.append((isSelected, isHighlighted, isFocused, indexPath, sectionID, itemID))
+            })
+        }
+
+        viewController.view.addSubview(cell)
+        window.rootViewController = viewController
+        window.makeKeyAndVisible()
+
+        cell.isSelected = true
+        cell.isHighlighted = true
+        cell.render(
+            item: item,
+            indexPath: IndexPath.lkIndexPath(item: 3, section: 4),
+            sectionID: AnyHashable("section")
+        )
+        cell.layoutIfNeeded()
+        _ = window
+
+        XCTAssertTrue(reads.contains { read in
+            read.0 == true
+                && read.1 == true
+                && read.2 == false
+                && read.3 == IndexPath.lkIndexPath(item: 3, section: 4)
+                && read.4 == AnyHashable("section")
+                && read.5 == AnyHashable("item")
+        })
+    }
+
     func testHostingCellReuseUpdatesRenderedItemID() {
         let cell = LKHostingCollectionViewCell(frame: .zero)
         let first = LKItemModel(id: "first") {
@@ -1103,6 +1326,39 @@ final class LKCollectionViewAdapterTests: XCTestCase {
 
         XCTAssertEqual(cell.renderedItemID, AnyHashable("second"))
         XCTAssertNotNil(cell.contentConfiguration)
+    }
+
+    func testHostingCellReuseUpdatesEnvironmentMetadataAndState() {
+        let cell = LKHostingCollectionViewCell(frame: .zero)
+        let first = LKItemModel(id: "first") {
+            AnyView(Text("First"))
+        }
+        let second = LKItemModel(id: "second") {
+            AnyView(Text("Second"))
+        }
+
+        cell.render(
+            item: first,
+            indexPath: IndexPath.lkIndexPath(item: 0, section: 0),
+            sectionID: AnyHashable("old")
+        )
+        cell.isSelected = true
+        cell.isHighlighted = true
+        cell.setNeedsUpdateConfiguration()
+        cell.updateConfiguration(using: cell.configurationState)
+
+        cell.isSelected = false
+        cell.isHighlighted = false
+        cell.render(
+            item: second,
+            indexPath: IndexPath.lkIndexPath(item: 1, section: 2),
+            sectionID: AnyHashable("new")
+        )
+
+        XCTAssertEqual(cell.renderedItemID, AnyHashable("second"))
+        XCTAssertEqual(cell.renderedIndexPath, IndexPath.lkIndexPath(item: 1, section: 2))
+        XCTAssertEqual(cell.renderedSectionID, AnyHashable("new"))
+        XCTAssertEqual(cell.renderedState, .inactive)
     }
 
     func testHostingSupplementaryReuseReplacesHostedContentView() {
@@ -1177,6 +1433,256 @@ final class LKCollectionViewAdapterTests: XCTestCase {
 
         XCTAssertNotNil(itemSize)
         XCTAssertNotNil(supplementarySize)
+    }
+
+    func testDynamicHeightRowRecordsPreferredFittingSize() {
+        let indexPath = IndexPath.lkIndexPath(item: 0, section: 0)
+        let cell = LKHostingCollectionViewCell(frame: CGRect(x: 0, y: 0, width: 320, height: 44))
+        let item = LKItemModel(id: "dynamic") {
+            AnyView(
+                Text("A dynamic height row that should be measured through preferred fitting.")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+            )
+        }
+        var measuredSize: CGSize?
+
+        cell.render(item: item) { size in
+            measuredSize = size
+        }
+        let attributes = UICollectionViewLayoutAttributes(forCellWith: indexPath)
+        attributes.size = CGSize(width: 320, height: 44)
+        let fittedAttributes = cell.preferredLayoutAttributesFitting(attributes)
+
+        XCTAssertNotNil(measuredSize)
+        XCTAssertGreaterThan(fittedAttributes.size.height, 0)
+    }
+
+    func testLargeDataReloadApplyPerformance() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let model = LKListModel(
+            sections: [
+                LKSectionModel(
+                    id: "large",
+                    items: (0..<2_000).map { LKItemModel(id: $0) }
+                ),
+            ]
+        )
+
+        measure(metrics: [XCTClockMetric()]) {
+            adapter.apply(model)
+        }
+    }
+
+    func testAdapterActsAsPrefetchDataSourceAndRoutesLatestContexts() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        var events = LKListEvents()
+        var prefetchedContexts = [LKAnyItemContext]()
+        var cancelledContexts = [LKAnyItemContext]()
+        let model = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "one", base: "first"),
+                    LKItemModel(id: "two", base: "second"),
+                ]),
+            ]
+        )
+
+        events.didPrefetch = { contexts in
+            prefetchedContexts = contexts
+        }
+        events.didCancelPrefetch = { contexts in
+            cancelledContexts = contexts
+        }
+
+        adapter.apply(model, listEvents: events)
+        XCTAssertTrue(collectionView.prefetchDataSource === adapter)
+
+        adapter.collectionView(
+            collectionView,
+            prefetchItemsAt: [
+                IndexPath.lkIndexPath(item: 0, section: 0),
+                IndexPath.lkIndexPath(item: 99, section: 0),
+                IndexPath.lkIndexPath(item: 1, section: 0),
+            ]
+        )
+        adapter.collectionView(
+            collectionView,
+            cancelPrefetchingForItemsAt: [
+                IndexPath.lkIndexPath(item: 1, section: 0),
+                IndexPath.lkIndexPath(item: 0, section: 99),
+            ]
+        )
+
+        XCTAssertEqual(prefetchedContexts.map(\.id), [AnyHashable("one"), AnyHashable("two")])
+        XCTAssertEqual(prefetchedContexts.map(\.sectionID), [AnyHashable("section"), AnyHashable("section")])
+        XCTAssertEqual(prefetchedContexts.compactMap { $0.item as? String }, ["first", "second"])
+        XCTAssertEqual(cancelledContexts.map(\.id), [AnyHashable("two")])
+        XCTAssertEqual(adapter.prefetchedItemIDs, [AnyHashable("one")])
+    }
+
+    func testPrefetchCachePrunesRemovedItemsAfterApply() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let original = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "one"),
+                    LKItemModel(id: "two"),
+                ]),
+            ]
+        )
+        let updated = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "two"),
+                ]),
+            ]
+        )
+
+        adapter.apply(original)
+        adapter.collectionView(
+            collectionView,
+            prefetchItemsAt: [
+                IndexPath.lkIndexPath(item: 0, section: 0),
+                IndexPath.lkIndexPath(item: 1, section: 0),
+            ]
+        )
+        adapter.apply(updated)
+
+        XCTAssertEqual(adapter.prefetchedItemIDs, [AnyHashable("two")])
+    }
+
+    func testAdvancedDelegateCallbacksRouteListHandlersWithContext() {
+        let collectionView = makeCollectionView()
+        let window = makeVisibleWindow(for: collectionView)
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let indexPath = IndexPath.lkIndexPath(item: 0, section: 0)
+        let menuConfiguration = UIContextMenuConfiguration(identifier: "menu" as NSString)
+        let highlightPreview = UITargetedPreview(view: collectionView)
+        let dismissPreview = UITargetedPreview(view: collectionView)
+        let action = #selector(UIResponderStandardEditActions.copy(_:))
+        var events = LKListEvents()
+        var routedEvents = [String]()
+        var contextMenuPoint: CGPoint?
+        var primaryActionContext: LKAnyItemContext?
+        _ = window
+
+        events.uiContextMenuConfiguration = { context, point in
+            routedEvents.append("contextMenu:\(context.id)")
+            contextMenuPoint = point
+            return menuConfiguration
+        }
+        events.uiPreviewForHighlightingContextMenu = { configuration in
+            routedEvents.append("previewHighlight:\(configuration.identifier as? String ?? "")")
+            return highlightPreview
+        }
+        events.uiPreviewForDismissingContextMenu = { configuration in
+            routedEvents.append("previewDismiss:\(configuration.identifier as? String ?? "")")
+            return dismissPreview
+        }
+        events.canPerformPrimaryAction = { context in
+            routedEvents.append("canPrimary:\(context.id)")
+            return false
+        }
+        events.didPerformPrimaryAction = { context in
+            routedEvents.append("primary:\(context.id)")
+            primaryActionContext = context
+        }
+        events.shouldBeginMultipleSelectionInteraction = { context in
+            routedEvents.append("shouldMultiple:\(context.id)")
+            return true
+        }
+        events.didBeginMultipleSelectionInteraction = { context in
+            routedEvents.append("beginMultiple:\(context.id)")
+        }
+        events.didEndMultipleSelectionInteraction = {
+            routedEvents.append("endMultiple")
+        }
+        events.canFocus = { context in
+            routedEvents.append("canFocus:\(context.id)")
+            return false
+        }
+        events.preferredFocusedItemID = AnyHashable("item")
+        events.shouldShowEditMenu = { context in
+            routedEvents.append("shouldMenu:\(context.id)")
+            return true
+        }
+        events.canPerformMenuAction = { context, receivedAction, sender in
+            routedEvents.append("canMenu:\(context.id):\(receivedAction == action):\(sender as? String ?? "")")
+            return true
+        }
+        events.performMenuAction = { context, receivedAction, sender in
+            routedEvents.append("performMenu:\(context.id):\(receivedAction == action):\(sender as? String ?? "")")
+        }
+
+        adapter.apply(makeModel(itemID: "item"), listEvents: events)
+
+        XCTAssertTrue(
+            adapter.collectionView(
+                collectionView,
+                contextMenuConfigurationForItemAt: indexPath,
+                point: CGPoint(x: 4, y: 5)
+            ) === menuConfiguration
+        )
+        XCTAssertTrue(
+            adapter.collectionView(
+                collectionView,
+                previewForHighlightingContextMenuWithConfiguration: menuConfiguration
+            ) === highlightPreview
+        )
+        XCTAssertTrue(
+            adapter.collectionView(
+                collectionView,
+                previewForDismissingContextMenuWithConfiguration: menuConfiguration
+            ) === dismissPreview
+        )
+        XCTAssertFalse(adapter.collectionView(collectionView, canPerformPrimaryActionForItemAt: indexPath))
+        adapter.collectionView(collectionView, performPrimaryActionForItemAt: indexPath)
+        XCTAssertTrue(
+            adapter.collectionView(
+                collectionView,
+                shouldBeginMultipleSelectionInteractionAt: indexPath
+            )
+        )
+        adapter.collectionView(collectionView, didBeginMultipleSelectionInteractionAt: indexPath)
+        adapter.collectionViewDidEndMultipleSelectionInteraction(collectionView)
+        XCTAssertFalse(adapter.collectionView(collectionView, canFocusItemAt: indexPath))
+        XCTAssertEqual(adapter.indexPathForPreferredFocusedView(in: collectionView), indexPath)
+        XCTAssertTrue(adapter.collectionView(collectionView, shouldShowMenuForItemAt: indexPath))
+        XCTAssertTrue(
+            adapter.collectionView(
+                collectionView,
+                canPerformAction: action,
+                forItemAt: indexPath,
+                withSender: "sender"
+            )
+        )
+        adapter.collectionView(
+            collectionView,
+            performAction: action,
+            forItemAt: indexPath,
+            withSender: "sender"
+        )
+
+        XCTAssertEqual(contextMenuPoint, CGPoint(x: 4, y: 5))
+        XCTAssertEqual(primaryActionContext?.id, AnyHashable("item"))
+        XCTAssertEqual(routedEvents, [
+            "contextMenu:item",
+            "previewHighlight:menu",
+            "previewDismiss:menu",
+            "canPrimary:item",
+            "primary:item",
+            "shouldMultiple:item",
+            "beginMultiple:item",
+            "endMultiple",
+            "canFocus:item",
+            "shouldMenu:item",
+            "canMenu:item:true:sender",
+            "performMenu:item:true:sender",
+        ])
     }
 
     private func makeCollectionView() -> UICollectionView {

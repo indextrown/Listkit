@@ -1,6 +1,9 @@
 #if canImport(SwiftUI)
 import Foundation
 import CoreGraphics
+#if canImport(UIKit)
+import UIKit
+#endif
 
 public struct LKItemContext<Item> {
     public let item: Item
@@ -97,6 +100,28 @@ public struct LKListEvents {
     var shouldScrollToTop: ((LKScrollContext) -> Bool)?
     var didScrollToTop: ((LKScrollContext) -> Void)?
     var didReachEnd: (() -> Void)?
+    var didPrefetch: (([LKAnyItemContext]) -> Void)?
+    var didCancelPrefetch: (([LKAnyItemContext]) -> Void)?
+    var didEmitWarning: ((LKListKitWarning) -> Void)?
+    var canPerformPrimaryAction: ((LKAnyItemContext) -> Bool)?
+    var didPerformPrimaryAction: ((LKAnyItemContext) -> Void)?
+    var shouldBeginMultipleSelectionInteraction: ((LKAnyItemContext) -> Bool)?
+    var didBeginMultipleSelectionInteraction: ((LKAnyItemContext) -> Void)?
+    var didEndMultipleSelectionInteraction: (() -> Void)?
+    #if canImport(UIKit)
+    var uiContextMenuConfiguration: ((LKAnyItemContext, CGPoint) -> UIContextMenuConfiguration?)?
+    var uiWillPerformPreviewAction: ((UIContextMenuConfiguration, UIContextMenuInteractionCommitAnimating) -> Void)?
+    var uiPreviewForHighlightingContextMenu: ((UIContextMenuConfiguration) -> UITargetedPreview?)?
+    var uiPreviewForDismissingContextMenu: ((UIContextMenuConfiguration) -> UITargetedPreview?)?
+    var canFocus: ((LKAnyItemContext) -> Bool)?
+    var shouldUpdateFocus: ((UICollectionViewFocusUpdateContext) -> Bool)?
+    var didUpdateFocus: ((UICollectionViewFocusUpdateContext, UIFocusAnimationCoordinator) -> Void)?
+    var preferredFocusedItemID: AnyHashable?
+    var shouldShowEditMenu: ((LKAnyItemContext) -> Bool)?
+    var canPerformMenuAction: ((LKAnyItemContext, Selector, Any?) -> Bool)?
+    var performMenuAction: ((LKAnyItemContext, Selector, Any?) -> Void)?
+    var shouldSpringLoad: ((LKAnyItemContext, UISpringLoadedInteractionContext) -> Bool)?
+    #endif
     public init() {}
 }
 

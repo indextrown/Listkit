@@ -4,14 +4,27 @@ import SwiftUI
 
 final class LKHostingCollectionViewCell: UICollectionViewCell {
     private(set) var renderedItemID: AnyHashable?
+    private(set) var renderedIndexPath: IndexPath?
+    private(set) var renderedSectionID: AnyHashable?
     private(set) var renderedState = LKCellState.inactive
     private var item: LKItemModel?
+    private var indexPath: IndexPath?
+    private var sectionID: AnyHashable?
     private var onSizeChange: ((CGSize) -> Void)?
 
-    func render(item: LKItemModel, onSizeChange: ((CGSize) -> Void)? = nil) {
+    func render(
+        item: LKItemModel,
+        indexPath: IndexPath? = nil,
+        sectionID: AnyHashable? = nil,
+        onSizeChange: ((CGSize) -> Void)? = nil
+    ) {
         self.item = item
+        self.indexPath = indexPath
+        self.sectionID = sectionID
         self.onSizeChange = onSizeChange
         renderedItemID = item.id
+        renderedIndexPath = indexPath
+        renderedSectionID = sectionID
         updateContentConfiguration(for: configurationState)
     }
 
@@ -48,6 +61,9 @@ final class LKHostingCollectionViewCell: UICollectionViewCell {
         contentConfiguration = UIHostingConfiguration {
             makeContent()
                 .environment(\.lkCellState, cellState)
+                .environment(\.listKitIndexPath, indexPath)
+                .environment(\.listKitSectionID, sectionID)
+                .environment(\.listKitItemID, item.id)
         }
     }
 }
