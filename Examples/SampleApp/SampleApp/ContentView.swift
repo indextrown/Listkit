@@ -64,6 +64,128 @@ enum ListKitExampleData {
     }
 }
 
+enum SampleExample: String, CaseIterable, Identifiable, Hashable {
+    case basic
+    case sectioned
+    case selection
+    case refresh
+    case search
+    case displayLifecycle
+    case contextMenu
+    case grid
+    case diffable
+    case differenceKit
+    case largeData
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .basic:
+            "Basic List"
+        case .sectioned:
+            "Sections"
+        case .selection:
+            "Selection"
+        case .refresh:
+            "Refresh"
+        case .search:
+            "Search"
+        case .displayLifecycle:
+            "Display Lifecycle"
+        case .contextMenu:
+            "Context Menu"
+        case .grid:
+            "Grid Layout"
+        case .diffable:
+            "Diffable Engine"
+        case .differenceKit:
+            "DifferenceKit Engine"
+        case .largeData:
+            "Large Data"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .basic:
+            "Plain list, selection callback, display lifecycle, refresh, diffable updates."
+        case .sectioned:
+            "Multiple sections with headers and footers."
+        case .selection:
+            "Multiple selection with a should-select rule."
+        case .refresh:
+            "Async refresh control integration."
+        case .search:
+            "SwiftUI searchable composed with LKList."
+        case .displayLifecycle:
+            "willDisplay and didEndDisplaying hooks."
+        case .contextMenu:
+            "SwiftUI row context menu."
+        case .grid:
+            "Section-level grid layout."
+        case .diffable:
+            "UICollectionViewDiffableDataSource update engine."
+        case .differenceKit:
+            "DifferenceKit staged update engine."
+        case .largeData:
+            "1,000 rows with diffable updates."
+        }
+    }
+}
+
+struct ContentView: View {
+    var body: some View {
+        NavigationStack {
+            List(SampleExample.allCases) { example in
+                NavigationLink(value: example) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(example.title)
+                            .font(.headline)
+                        Text(example.subtitle)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .navigationTitle("ListKit Examples")
+            .navigationDestination(for: SampleExample.self) { example in
+                destination(for: example)
+                    .navigationTitle(example.title)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func destination(for example: SampleExample) -> some View {
+        switch example {
+        case .basic:
+            BasicListExample()
+        case .sectioned:
+            SectionedHeaderFooterExample()
+        case .selection:
+            SelectionExample()
+        case .refresh:
+            RefreshExample()
+        case .search:
+            SearchExample()
+        case .displayLifecycle:
+            DisplayLifecycleExample()
+        case .contextMenu:
+            ContextMenuExample()
+        case .grid:
+            GridLayoutExample()
+        case .diffable:
+            DiffableEngineExample()
+        case .differenceKit:
+            DifferenceKitEngineExample()
+        case .largeData:
+            LargeDataExample()
+        }
+    }
+}
+
 struct BasicListExample: View {
     var body: some View {
         LKList(ListKitExampleData.messages, id: \.id) { message in
@@ -157,13 +279,10 @@ struct SearchExample: View {
     }
 
     var body: some View {
-        NavigationStack {
-            LKList(filteredMessages, id: \.id) { message in
-                ExampleMessageRow(message: message)
-            }
-            .searchable(text: $query)
-            .navigationTitle("Search")
+        LKList(filteredMessages, id: \.id) { message in
+            ExampleMessageRow(message: message)
         }
+        .searchable(text: $query)
     }
 }
 
@@ -241,6 +360,7 @@ struct LargeDataExample: View {
 struct ListKitExamplesPreview: PreviewProvider {
     static var previews: some View {
         Group {
+            ContentView()
             BasicListExample()
             SectionedHeaderFooterExample()
             SelectionExample()
