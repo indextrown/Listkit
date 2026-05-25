@@ -1902,152 +1902,152 @@ README의 첫 예시는 너무 단순한 todo list가 아니라, `onSelect`, `on
 
 ### 15. Prefetching
 
-- [ ] adapter가 `UICollectionViewDataSourcePrefetching`을 담당합니다.
-- [ ] `.onPrefetch` modifier를 구현합니다.
-- [ ] `.onCancelPrefetch` modifier를 구현합니다.
-- [ ] indexPaths를 최신 snapshot 기준 context 배열로 변환합니다.
-- [ ] prefetch operation cache를 item id 또는 indexPath 정책에 맞춰 구현합니다.
-- [ ] cancel 시 작업 정리 hook을 호출합니다.
+- [x] adapter가 `UICollectionViewDataSourcePrefetching`을 담당합니다.
+- [x] `.onPrefetch` modifier를 구현합니다.
+- [x] `.onCancelPrefetch` modifier를 구현합니다.
+- [x] indexPaths를 최신 snapshot 기준 context 배열로 변환합니다.
+- [x] prefetch operation cache를 item id 또는 indexPath 정책에 맞춰 구현합니다.
+- [x] cancel 시 작업 정리 hook을 호출합니다.
 
 완료 기준:
 
-- [ ] prefetch/cancel callback 테스트가 통과합니다.
-- [ ] 사라진 indexPath는 context에서 안전하게 제외됩니다.
+- [x] prefetch/cancel callback 테스트가 통과합니다.
+- [x] 사라진 indexPath는 context에서 안전하게 제외됩니다.
 
 ### 16. Advanced UICollectionViewDelegate
 
-- [ ] `contextMenuConfigurationForItemAt` advanced API를 구현합니다.
-- [ ] SwiftUI friendly `.contextMenu` API와의 관계를 정리합니다.
-- [ ] `willPerformPreviewActionForMenuWith`를 연결합니다.
-- [ ] `previewForHighlightingContextMenuWithConfiguration`을 연결합니다.
-- [ ] `previewForDismissingContextMenuWithConfiguration`을 연결합니다.
-- [ ] `canPerformPrimaryActionForItemAt`를 연결합니다.
-- [ ] `performPrimaryActionForItemAt`를 연결합니다.
-- [ ] `shouldBeginMultipleSelectionInteractionAt`를 연결합니다.
-- [ ] `didBeginMultipleSelectionInteractionAt`를 연결합니다.
-- [ ] `collectionViewDidEndMultipleSelectionInteraction`을 연결합니다.
-- [ ] `canFocusItemAt`를 연결합니다.
-- [ ] `shouldUpdateFocusIn`을 연결합니다.
-- [ ] `didUpdateFocusIn`을 연결합니다.
-- [ ] `indexPathForPreferredFocusedView`를 연결합니다.
-- [ ] `shouldShowMenuForItemAt`를 연결합니다.
-- [ ] `canPerformAction`을 연결합니다.
-- [ ] `performAction`을 연결합니다.
-- [ ] `shouldSpringLoadItemAt`를 연결합니다.
+- [x] `contextMenuConfigurationForItemAt` advanced API를 구현합니다.
+- [x] SwiftUI friendly `.contextMenu` API와의 관계를 정리합니다.
+- [x] `willPerformPreviewActionForMenuWith`를 연결합니다.
+- [x] `previewForHighlightingContextMenuWithConfiguration`을 연결합니다.
+- [x] `previewForDismissingContextMenuWithConfiguration`을 연결합니다.
+- [x] `canPerformPrimaryActionForItemAt`를 연결합니다.
+- [x] `performPrimaryActionForItemAt`를 연결합니다.
+- [x] `shouldBeginMultipleSelectionInteractionAt`를 연결합니다.
+- [x] `didBeginMultipleSelectionInteractionAt`를 연결합니다.
+- [x] `collectionViewDidEndMultipleSelectionInteraction`을 연결합니다.
+- [x] `canFocusItemAt`를 연결합니다.
+- [x] `shouldUpdateFocusIn`을 연결합니다.
+- [x] `didUpdateFocusIn`을 연결합니다.
+- [x] `indexPathForPreferredFocusedView`를 연결합니다.
+- [x] `shouldShowMenuForItemAt`를 연결합니다.
+- [x] `canPerformAction`을 연결합니다.
+- [x] `performAction`을 연결합니다.
+- [x] `shouldSpringLoadItemAt`를 연결합니다.
 
 완료 기준:
 
-- [ ] delegate 대응표의 모든 항목에 public hook이 있습니다.
-- [ ] UIKit 타입 의존 API는 advanced 이름을 사용합니다.
+- [x] delegate 대응표의 모든 항목에 public hook이 있습니다.
+- [x] UIKit 타입 의존 API는 advanced 이름을 사용합니다.
 
 ### 17. Environment Values
 
-- [ ] `\.listKitIsSelected`를 구현합니다.
-- [ ] `\.listKitIsHighlighted`를 구현합니다.
-- [ ] `\.listKitIsFocused`를 구현합니다.
-- [ ] `\.listKitIndexPath`를 구현합니다.
-- [ ] `\.listKitSectionID`를 구현합니다.
-- [ ] `\.listKitItemID`를 구현합니다.
-- [ ] cell state 변화 시 environment가 갱신되게 합니다.
-- [ ] environment 갱신이 불필요한 full reload를 유발하지 않게 합니다.
+- [x] `\.listKitIsSelected`를 구현합니다.
+- [x] `\.listKitIsHighlighted`를 구현합니다.
+- [x] `\.listKitIsFocused`를 구현합니다.
+- [x] `\.listKitIndexPath`를 구현합니다.
+- [x] `\.listKitSectionID`를 구현합니다.
+- [x] `\.listKitItemID`를 구현합니다.
+- [x] cell state 변화 시 environment가 갱신되게 합니다.
+- [x] environment 갱신이 불필요한 full reload를 유발하지 않게 합니다.
 
 완료 기준:
 
-- [ ] row content에서 environment 값을 읽는 예제가 동작합니다.
-- [ ] selection/highlight/focus state가 reuse 후 새지 않습니다.
+- [x] row content에서 environment 값을 읽는 예제가 동작합니다.
+- [x] selection/highlight/focus state가 reuse 후 새지 않습니다.
 
 ### 18. Diagnostics
 
-- [ ] `LKListKitWarning` enum을 정의합니다.
-- [ ] duplicate id warning을 구현합니다.
-- [ ] invalid lookup warning을 구현합니다.
-- [ ] unsupported feature/layout 조합 warning을 구현합니다.
-- [ ] diff failure warning을 구현합니다.
-- [ ] `.listKitDiagnostics(.enabled)` API를 구현합니다.
-- [ ] `.onListKitWarning` API를 구현합니다.
-- [ ] debug assertion과 runtime warning 경계를 문서화합니다.
+- [x] `LKListKitWarning` enum을 정의합니다.
+- [x] duplicate id warning을 구현합니다.
+- [x] invalid lookup warning을 구현합니다.
+- [x] unsupported feature/layout 조합 warning을 구현합니다.
+- [x] diff failure warning을 구현합니다.
+- [x] `.listKitDiagnostics(.enabled)` API를 구현합니다.
+- [x] `.onListKitWarning` API를 구현합니다.
+- [x] debug assertion과 runtime warning 경계를 문서화합니다.
 
 완료 기준:
 
-- [ ] diagnostics 테스트가 통과합니다.
-- [ ] release build에서 치명적이지 않은 오류는 fallback 처리됩니다.
+- [x] diagnostics 테스트가 통과합니다.
+- [x] release build에서 치명적이지 않은 오류는 fallback 처리됩니다.
 
 ### 19. Tests
 
-- [ ] model identity 테스트를 작성합니다.
-- [ ] duplicate id 테스트를 작성합니다.
-- [ ] builder 테스트를 작성합니다.
-- [ ] modifier merge 테스트를 작성합니다.
-- [ ] event routing 테스트를 작성합니다.
-- [ ] adapter registration set 테스트를 작성합니다.
-- [ ] reload update 테스트를 작성합니다.
-- [ ] diffable update 테스트를 작성합니다.
-- [ ] DifferenceKit update 테스트를 작성합니다.
-- [ ] selection 테스트를 작성합니다.
-- [ ] display lifecycle 테스트를 작성합니다.
-- [ ] supplementary lifecycle 테스트를 작성합니다.
-- [ ] refresh 테스트를 작성합니다.
-- [ ] prefetch 테스트를 작성합니다.
-- [ ] dynamic height 테스트를 작성합니다.
-- [ ] large data performance 테스트를 작성합니다.
+- [x] model identity 테스트를 작성합니다.
+- [x] duplicate id 테스트를 작성합니다.
+- [x] builder 테스트를 작성합니다.
+- [x] modifier merge 테스트를 작성합니다.
+- [x] event routing 테스트를 작성합니다.
+- [x] adapter registration set 테스트를 작성합니다.
+- [x] reload update 테스트를 작성합니다.
+- [x] diffable update 테스트를 작성합니다.
+- [x] DifferenceKit update 테스트를 작성합니다.
+- [x] selection 테스트를 작성합니다.
+- [x] display lifecycle 테스트를 작성합니다.
+- [x] supplementary lifecycle 테스트를 작성합니다.
+- [x] refresh 테스트를 작성합니다.
+- [x] prefetch 테스트를 작성합니다.
+- [x] dynamic height 테스트를 작성합니다.
+- [x] large data performance 테스트를 작성합니다.
 
 완료 기준:
 
-- [ ] 핵심 테스트가 CI 또는 로컬 명령 한 번으로 실행됩니다.
-- [ ] 실패 시 어느 레이어 문제인지 테스트 이름으로 추적 가능합니다.
+- [x] 핵심 테스트가 CI 또는 로컬 명령 한 번으로 실행됩니다.
+- [x] 실패 시 어느 레이어 문제인지 테스트 이름으로 추적 가능합니다.
 
 ### 20. Examples
 
-- [ ] 단일 섹션 기본 list 예제를 작성합니다.
-- [ ] 여러 섹션 header/footer 예제를 작성합니다.
-- [ ] selection 예제를 작성합니다.
-- [ ] refresh 예제를 작성합니다.
-- [ ] search 조합 예제를 작성합니다.
-- [ ] willDisplay/didEndDisplaying 이미지 로딩 예제를 작성합니다.
-- [ ] context menu 예제를 작성합니다.
-- [ ] grid layout 예제를 작성합니다.
-- [ ] diffable engine 예제를 작성합니다.
-- [ ] DifferenceKit engine 예제를 작성합니다.
-- [ ] large data 예제를 작성합니다.
+- [x] 단일 섹션 기본 list 예제를 작성합니다.
+- [x] 여러 섹션 header/footer 예제를 작성합니다.
+- [x] selection 예제를 작성합니다.
+- [x] refresh 예제를 작성합니다.
+- [x] search 조합 예제를 작성합니다.
+- [x] willDisplay/didEndDisplaying 이미지 로딩 예제를 작성합니다.
+- [x] context menu 예제를 작성합니다.
+- [x] grid layout 예제를 작성합니다.
+- [x] diffable engine 예제를 작성합니다.
+- [x] DifferenceKit engine 예제를 작성합니다.
+- [x] large data 예제를 작성합니다.
 
 완료 기준:
 
-- [ ] example app 또는 preview에서 주요 기능을 눈으로 확인할 수 있습니다.
-- [ ] README의 첫 예제가 실제 코드와 일치합니다.
+- [x] example app 또는 preview에서 주요 기능을 눈으로 확인할 수 있습니다.
+- [x] README의 첫 예제가 실제 코드와 일치합니다.
 
 ### 21. Documentation
 
-- [ ] README 첫 예제를 작성합니다.
-- [ ] SwiftUI `List`와의 차이를 문서화합니다.
-- [ ] delegate 대응표를 README에 옮깁니다.
-- [ ] identity/equality 가이드를 작성합니다.
-- [ ] diffable vs DifferenceKit 선택 가이드를 작성합니다.
-- [ ] selection vs primary action 차이를 문서화합니다.
-- [ ] dynamic height/self-sizing 가이드를 작성합니다.
-- [ ] refresh/search 사용법을 문서화합니다.
-- [ ] performance troubleshooting을 작성합니다.
-- [ ] migration guide from SwiftUI List를 작성합니다.
+- [x] README 첫 예제를 작성합니다.
+- [x] SwiftUI `List`와의 차이를 문서화합니다.
+- [x] delegate 대응표를 README에 옮깁니다.
+- [x] identity/equality 가이드를 작성합니다.
+- [x] diffable vs DifferenceKit 선택 가이드를 작성합니다.
+- [x] selection vs primary action 차이를 문서화합니다.
+- [x] dynamic height/self-sizing 가이드를 작성합니다.
+- [x] refresh/search 사용법을 문서화합니다.
+- [x] performance troubleshooting을 작성합니다.
+- [x] migration guide from SwiftUI List를 작성합니다.
 
 완료 기준:
 
-- [ ] 새 사용자가 README만 보고 기본 list를 작성할 수 있습니다.
-- [ ] 고급 사용자가 원하는 UIKit delegate hook을 문서에서 찾을 수 있습니다.
+- [x] 새 사용자가 README만 보고 기본 list를 작성할 수 있습니다.
+- [x] 고급 사용자가 원하는 UIKit delegate hook을 문서에서 찾을 수 있습니다.
 
 ### 22. Release Readiness
 
-- [ ] public API naming을 최종 점검합니다.
-- [ ] `@available` annotation을 점검합니다.
-- [ ] access control을 점검합니다.
-- [ ] SPI로 숨길 타입과 public 타입을 분리합니다.
-- [ ] binary/source compatibility에 민감한 generic API를 점검합니다.
-- [ ] package products를 정리합니다.
-- [ ] DifferenceKit optional product 구성을 점검합니다.
-- [ ] license와 attribution을 확인합니다.
-- [ ] changelog 초안을 작성합니다.
-- [ ] semantic versioning 기준을 정합니다.
+- [x] public API naming을 최종 점검합니다.
+- [x] `@available` annotation을 점검합니다.
+- [x] access control을 점검합니다.
+- [x] SPI로 숨길 타입과 public 타입을 분리합니다.
+- [x] binary/source compatibility에 민감한 generic API를 점검합니다.
+- [x] package products를 정리합니다.
+- [x] DifferenceKit optional product 구성을 점검합니다.
+- [x] license와 attribution을 확인합니다.
+- [x] changelog 초안을 작성합니다.
+- [x] semantic versioning 기준을 정합니다.
 
 완료 기준:
 
-- [ ] clean checkout에서 build/test가 통과합니다.
-- [ ] README 예제가 그대로 컴파일됩니다.
-- [ ] 1차 릴리즈 태그를 만들 수 있는 상태입니다.
+- [x] clean checkout에서 build/test가 통과합니다.
+- [x] README 예제가 그대로 컴파일됩니다.
+- [x] 1차 릴리즈 태그를 만들 수 있는 상태입니다.
