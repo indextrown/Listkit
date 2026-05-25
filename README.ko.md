@@ -19,6 +19,7 @@
 - [Refresh와 Search](#refresh와-search)
 - [Context Menu](#context-menu)
 - [성능 디버깅](#성능-디버깅)
+- [벤치마크](#벤치마크)
 - [SwiftUI List에서 이전하기](#swiftui-list에서-이전하기)
 - [샘플 앱 예제](#샘플-앱-예제)
 
@@ -231,6 +232,34 @@ UIKit preview controller, targeted preview, commit animator가 필요하면 List
 - 대부분의 animated update는 `.diffableDataSource`가 기본 선택지입니다.
 - diffing 문제를 분리하려면 `.reloadData`로 바꿔 확인하세요.
 - invalid lookup, unsupported layout, diff fallback을 추적할 때는 `.listKitDiagnostics(.enabled)`를 켜세요.
+
+## 벤치마크
+
+[Examples/BenchmarkApp](./Examples/BenchmarkApp) 벤치마크 프로젝트는 같은 row model을 `ListKit`, SwiftUI `List`, `ScrollView + LazyVStack`으로 렌더링해서 비교합니다.
+
+![ListKit benchmark sample chart](./Benchmarks/results/listkit-benchmark-sample.svg)
+
+현재 저장소에 포함된 그래프는 [Benchmarks/results/sample-results.csv](./Benchmarks/results/sample-results.csv)에서 생성한 샘플 데이터입니다. 문서와 그래프 생성 흐름을 보여주기 위한 값이며, 공식 성능 수치로 보지 않아야 합니다.
+
+벤치마크 앱 빌드:
+
+```sh
+xcodebuild \
+  -project Examples/BenchmarkApp/BenchmarkApp.xcodeproj \
+  -scheme BenchmarkApp \
+  -destination 'generic/platform=iOS Simulator' \
+  build
+```
+
+의미 있는 수치를 얻으려면 같은 물리 기기에서 Release build로 실행하고, row count와 scenario를 고정한 뒤 각 구현을 여러 번 측정해서 median 값을 기록하세요. CSV를 실제 측정값으로 교체한 뒤 그래프를 다시 생성합니다.
+
+```sh
+python3 Benchmarks/scripts/render_chart.py \
+  Benchmarks/results/sample-results.csv \
+  Benchmarks/results/listkit-benchmark-sample.svg
+```
+
+자세한 흐름은 [Benchmarks/README.md](./Benchmarks/README.md)에 정리되어 있습니다.
 
 ## SwiftUI List에서 이전하기
 

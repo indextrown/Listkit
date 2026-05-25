@@ -23,6 +23,7 @@ The project goal is to keep SwiftUI-style list declaration while exposing the co
 - [Context Menus](#context-menus)
 - [Diagnostics](#diagnostics)
 - [Performance Troubleshooting](#performance-troubleshooting)
+- [Benchmarks](#benchmarks)
 - [Migrating From SwiftUI List](#migrating-from-swiftui-list)
 - [Sample App Examples](#sample-app-examples)
 
@@ -329,6 +330,34 @@ In debug builds, invalid model identity such as duplicate section or item IDs st
 - Use `.diffableDataSource` for most animated updates; use `.reloadData` to isolate whether an issue is diffing-related.
 - Enable `.listKitDiagnostics(.enabled)` while debugging invalid lookups, unsupported layout values, or diff fallbacks.
 - Keep row bodies lightweight. Heavy work should live outside the SwiftUI row body and be keyed by item ID.
+
+## Benchmarks
+
+The benchmark project in [Examples/BenchmarkApp](./Examples/BenchmarkApp) compares the same row model rendered with `ListKit`, SwiftUI `List`, and `ScrollView + LazyVStack`.
+
+![ListKit benchmark sample chart](./Benchmarks/results/listkit-benchmark-sample.svg)
+
+The checked-in chart is generated from [Benchmarks/results/sample-results.csv](./Benchmarks/results/sample-results.csv). It is sample data for documenting the workflow, not a published performance claim.
+
+Build the benchmark app:
+
+```sh
+xcodebuild \
+  -project Examples/BenchmarkApp/BenchmarkApp.xcodeproj \
+  -scheme BenchmarkApp \
+  -destination 'generic/platform=iOS Simulator' \
+  build
+```
+
+For meaningful numbers, run a Release build on the same physical device, use the same row count and scenario for every implementation, repeat each run, and record the median. After replacing the CSV with measured data, regenerate the chart:
+
+```sh
+python3 Benchmarks/scripts/render_chart.py \
+  Benchmarks/results/sample-results.csv \
+  Benchmarks/results/listkit-benchmark-sample.svg
+```
+
+See [Benchmarks/README.md](./Benchmarks/README.md) for the benchmark workflow.
 
 ## Migrating From SwiftUI List
 

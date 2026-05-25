@@ -1,0 +1,13 @@
+implementation,scenario,item_count,median_ms
+ListKit,Initial load,1000,38.4
+SwiftUI List,Initial load,1000,45.7
+LazyVStack,Initial load,1000,34.9
+ListKit,Append 250,1250,10.8
+SwiftUI List,Append 250,1250,17.6
+LazyVStack,Append 250,1250,13.1
+ListKit,Shuffle,1000,14.2
+SwiftUI List,Shuffle,1000,28.9
+LazyVStack,Shuffle,1000,23.4
+ListKit,Replace,1000,22.5
+SwiftUI List,Replace,1000,31.7
+LazyVStack,Replace,1000,26.8
