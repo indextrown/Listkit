@@ -1,8 +1,30 @@
 # ListKit
 
+[English](./README.md) | [한국어](./README.ko.md)
+
 `ListKit` is a SwiftUI-facing list library backed by `UICollectionView`.
 
 The project goal is to keep SwiftUI-style list declaration while exposing the collection view delegate surface that SwiftUI `List` does not provide directly.
+
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Current Status](#current-status)
+- [Requirements](#requirements)
+- [Test](#test)
+- [Release Status](#release-status)
+- [How ListKit Differs From SwiftUI List](#how-listkit-differs-from-swiftui-list)
+- [Delegate Hooks](#delegate-hooks)
+- [Identity And Equality](#identity-and-equality)
+- [Update Engines](#update-engines)
+- [Selection And Primary Action](#selection-and-primary-action)
+- [Dynamic Height And Self-Sizing](#dynamic-height-and-self-sizing)
+- [Refresh And Search](#refresh-and-search)
+- [Context Menus](#context-menus)
+- [Diagnostics](#diagnostics)
+- [Performance Troubleshooting](#performance-troubleshooting)
+- [Migrating From SwiftUI List](#migrating-from-swiftui-list)
+- [Sample App Examples](#sample-app-examples)
 
 ## Quick Start
 
@@ -65,7 +87,7 @@ struct InboxView: View {
 }
 ```
 
-Additional previewable examples live in [Examples/ListKitExamples](./Examples/ListKitExamples/ListKitExamples.swift), including section headers and footers, selection, refresh, search, display lifecycle hooks, context menus, grid layout, both update engines, and large data.
+Additional previewable examples live in [Examples/ListKitExamples](./Examples/ListKitExamples/ListKitExamples.swift). The runnable sample app lives in [Examples/SampleApp](./Examples/SampleApp), with each screen split under [Examples/SampleApp/SampleApp/View](./Examples/SampleApp/SampleApp/View).
 
 ## Current Status
 
@@ -340,3 +362,25 @@ Then move behavior one concern at a time:
 | list style | `.listKitStyle(...)` or section `.sectionLayout(...)` |
 
 After the basic migration compiles, choose an update engine, add selection binding if needed, and add delegate hooks only for the lifecycle events the screen actually uses.
+
+## Sample App Examples
+
+The sample app is a compact gallery of ListKit behaviors:
+
+| Screen | File | What it shows |
+| --- | --- | --- |
+| Basic List | [BasicListExample.swift](./Examples/SampleApp/SampleApp/View/BasicListExample.swift) | A plain list with selection, display lifecycle hooks, pull to refresh, and the diffable update engine. |
+| Sections | [SectionedHeaderFooterExample.swift](./Examples/SampleApp/SampleApp/View/SectionedHeaderFooterExample.swift) | Builder-style sections with header and footer content. |
+| Selection | [SelectionExample.swift](./Examples/SampleApp/SampleApp/View/SelectionExample.swift) | Multiple selection and a `shouldSelect` rule that blocks archived rows. |
+| Refresh | [RefreshExample.swift](./Examples/SampleApp/SampleApp/View/RefreshExample.swift) | `UIRefreshControl` integration that inserts a refreshed row after an async action. |
+| Search | [SearchExample.swift](./Examples/SampleApp/SampleApp/View/SearchExample.swift) | SwiftUI `.searchable` composed with `LKList` and filtered source data. |
+| Display Lifecycle | [DisplayLifecycleExample.swift](./Examples/SampleApp/SampleApp/View/DisplayLifecycleExample.swift) | `willDisplay` and `didEndDisplaying` callbacks for starting and pausing row work. |
+| Prefetch | [PrefetchExample.swift](./Examples/SampleApp/SampleApp/View/PrefetchExample.swift) | Infinite scrolling with `onReachEnd`, appending the next page before the user reaches the end. |
+| Image Prefetch | [ImagePrefetchExample.swift](./Examples/SampleApp/SampleApp/View/ImagePrefetchExample.swift) | Image loading cache driven by `.onPrefetch` and `.onCancelPrefetch` collection view callbacks. |
+| Context Menu | [ContextMenuExample.swift](./Examples/SampleApp/SampleApp/View/ContextMenuExample.swift) | SwiftUI row-level context menus inside ListKit rows. |
+| Grid Layout | [GridLayoutExample.swift](./Examples/SampleApp/SampleApp/View/GridLayoutExample.swift) | Section-level grid layout using `.sectionLayout(.grid(...))`. |
+| Diffable Engine | [DiffableEngineExample.swift](./Examples/SampleApp/SampleApp/View/DiffableEngineExample.swift) | The Apple `UICollectionViewDiffableDataSource` update engine. |
+| DifferenceKit Engine | [DifferenceKitEngineExample.swift](./Examples/SampleApp/SampleApp/View/DifferenceKitEngineExample.swift) | The DifferenceKit staged update engine. |
+| Shuffle Diffable | [ShuffleDiffableExample.swift](./Examples/SampleApp/SampleApp/View/ShuffleDiffableExample.swift) | Toolbar-driven row shuffling with the diffable update engine. |
+| Shuffle DifferenceKit | [ShuffleDifferenceKitExample.swift](./Examples/SampleApp/SampleApp/View/ShuffleDifferenceKitExample.swift) | Toolbar-driven row shuffling with the DifferenceKit update engine. |
+| Large Data | [LargeDataExample.swift](./Examples/SampleApp/SampleApp/View/LargeDataExample.swift) | A 1,000-row list for larger snapshot updates. |

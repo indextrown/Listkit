@@ -702,6 +702,8 @@ final class LKCollectionViewAdapter: NSObject {
         refreshControl.removeTarget(self, action: #selector(refreshControlValueChanged(_:)), for: .valueChanged)
         refreshControl.addTarget(self, action: #selector(refreshControlValueChanged(_:)), for: .valueChanged)
         refreshControl.tintColor = refreshConfiguration.tintColor
+        collectionView.bounces = true
+        collectionView.alwaysBounceVertical = true
         collectionView.refreshControl = refreshControl
     }
 

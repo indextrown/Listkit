@@ -701,6 +701,8 @@ final class LKCollectionViewAdapterTests: XCTestCase {
 
         XCTAssertNotNil(collectionView.refreshControl)
         XCTAssertEqual(collectionView.refreshControl?.tintColor, .systemBlue)
+        XCTAssertTrue(collectionView.bounces)
+        XCTAssertTrue(collectionView.alwaysBounceVertical)
 
         adapter.apply(makeModel(), refreshConfiguration: LKRefreshConfiguration())
         XCTAssertNil(collectionView.refreshControl)
