@@ -44,8 +44,12 @@ struct ExampleMessageRow: View {
 }
 
 enum ExampleImagePipeline {
-    static func resume(for id: AnyHashable) {}
-    static func pause(for id: AnyHashable) {}
+    static func resume(for id: AnyHashable) {
+        print("resume")
+    }
+    static func pause(for id: AnyHashable) {
+        print("pause")
+    }
 }
 
 enum ListKitExampleData {
@@ -64,85 +68,147 @@ enum ListKitExampleData {
     }
 }
 
-enum SampleExample: String, CaseIterable, Identifiable, Hashable {
-    case basic
-    case sectioned
-    case selection
-    case refresh
-    case search
-    case displayLifecycle
-    case contextMenu
-    case grid
-    case diffable
-    case differenceKit
-    case largeData
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .basic:
-            "Basic List"
-        case .sectioned:
-            "Sections"
-        case .selection:
-            "Selection"
-        case .refresh:
-            "Refresh"
-        case .search:
-            "Search"
-        case .displayLifecycle:
-            "Display Lifecycle"
-        case .contextMenu:
-            "Context Menu"
-        case .grid:
-            "Grid Layout"
-        case .diffable:
-            "Diffable Engine"
-        case .differenceKit:
-            "DifferenceKit Engine"
-        case .largeData:
-            "Large Data"
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .basic:
-            "Plain list, selection callback, display lifecycle, refresh, diffable updates."
-        case .sectioned:
-            "Multiple sections with headers and footers."
-        case .selection:
-            "Multiple selection with a should-select rule."
-        case .refresh:
-            "Async refresh control integration."
-        case .search:
-            "SwiftUI searchable composed with LKList."
-        case .displayLifecycle:
-            "willDisplay and didEndDisplaying hooks."
-        case .contextMenu:
-            "SwiftUI row context menu."
-        case .grid:
-            "Section-level grid layout."
-        case .diffable:
-            "UICollectionViewDiffableDataSource update engine."
-        case .differenceKit:
-            "DifferenceKit staged update engine."
-        case .largeData:
-            "1,000 rows with diffable updates."
-        }
-    }
-}
-
 struct ContentView: View {
     var body: some View {
         NavigationStack {
-            List(SampleExample.allCases) { example in
-                NavigationLink(value: example) {
+            List {
+                NavigationLink {
+                    BasicListExample()
+                } label: {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(example.title)
+                        Text("Basic List")
                             .font(.headline)
-                        Text(example.subtitle)
+                        Text("Plain list, selection callback, display lifecycle, refresh, diffable updates.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                NavigationLink {
+                    SectionedHeaderFooterExample()
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Sections")
+                            .font(.headline)
+                        Text("Multiple sections with headers and footers.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                NavigationLink {
+                    SelectionExample()
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Selection")
+                            .font(.headline)
+                        Text("Multiple selection with a should-select rule.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                NavigationLink {
+                    RefreshExample()
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Refresh")
+                            .font(.headline)
+                        Text("Async refresh control integration.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                NavigationLink {
+                    SearchExample()
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Search")
+                            .font(.headline)
+                        Text("SwiftUI searchable composed with LKList.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                NavigationLink {
+                    DisplayLifecycleExample()
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Display Lifecycle")
+                            .font(.headline)
+                        Text("willDisplay and didEndDisplaying hooks.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                NavigationLink {
+                    ContextMenuExample()
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Context Menu")
+                            .font(.headline)
+                        Text("SwiftUI row context menu.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                NavigationLink {
+                    GridLayoutExample()
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Grid Layout")
+                            .font(.headline)
+                        Text("Section-level grid layout.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                NavigationLink {
+                    DiffableEngineExample()
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Diffable Engine")
+                            .font(.headline)
+                        Text("UICollectionViewDiffableDataSource update engine.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                NavigationLink {
+                    DifferenceKitEngineExample()
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("DifferenceKit Engine")
+                            .font(.headline)
+                        Text("DifferenceKit staged update engine.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                NavigationLink {
+                    LargeDataExample()
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Large Data")
+                            .font(.headline)
+                        Text("1,000 rows with diffable updates.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -150,38 +216,6 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("ListKit Examples")
-            .navigationDestination(for: SampleExample.self) { example in
-                destination(for: example)
-                    .navigationTitle(example.title)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func destination(for example: SampleExample) -> some View {
-        switch example {
-        case .basic:
-            BasicListExample()
-        case .sectioned:
-            SectionedHeaderFooterExample()
-        case .selection:
-            SelectionExample()
-        case .refresh:
-            RefreshExample()
-        case .search:
-            SearchExample()
-        case .displayLifecycle:
-            DisplayLifecycleExample()
-        case .contextMenu:
-            ContextMenuExample()
-        case .grid:
-            GridLayoutExample()
-        case .diffable:
-            DiffableEngineExample()
-        case .differenceKit:
-            DifferenceKitEngineExample()
-        case .largeData:
-            LargeDataExample()
         }
     }
 }
