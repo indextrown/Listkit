@@ -38,7 +38,7 @@ final class LKListModelTests: XCTestCase {
         let model = LKListModel(
             sections: [
                 LKSectionModel(id: "first", items: [
-                    LKItemModel(id: "a"),
+                    LKItemModel(id: "a", reuseIdentifier: "cell-a", contentToken: "a-v1"),
                     LKItemModel(id: "duplicate"),
                 ]),
                 LKSectionModel(id: "second", items: [
@@ -49,12 +49,16 @@ final class LKListModelTests: XCTestCase {
         )
 
         let index = LKListModelIndex(model: model)
+        let contentTokenIndex = LKListContentTokenIndex(model: model)
+        let identity = LKModelItemIdentity(sectionID: AnyHashable("first"), itemID: AnyHashable("a"))
 
         XCTAssertEqual(index.indexPath(forItemID: "a"), .lkIndexPath(item: 0, section: 0))
         XCTAssertEqual(index.indexPath(forItemID: "b"), .lkIndexPath(item: 0, section: 1))
         XCTAssertEqual(index.indexPath(forItemID: "duplicate"), .lkIndexPath(item: 1, section: 0))
         XCTAssertNil(index.indexPath(forItemID: "missing"))
         XCTAssertEqual(index.itemIDs, Set<AnyHashable>(["a", "duplicate", "b"]))
+        XCTAssertTrue(contentTokenIndex.containsItem(identity))
+        XCTAssertEqual(contentTokenIndex.contentToken(for: identity), AnyHashable("a-v1"))
     }
 
     func testSupplementaryLookupReturnsHeaderFooterAndCustomSupplementary() {
