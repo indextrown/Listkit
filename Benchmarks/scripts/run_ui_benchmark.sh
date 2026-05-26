@@ -8,10 +8,12 @@ SVG_OUTPUT="$ROOT_DIR/Benchmarks/results/simulator-results.svg"
 CONFIG_OUTPUT="$ROOT_DIR/Benchmarks/results/benchmark-config.json"
 DESTINATION="${LISTKIT_BENCHMARK_DESTINATION:-platform=iOS Simulator,name=iPhone 15 Pro Max,OS=26.0}"
 SIMULATOR_ID="${LISTKIT_BENCHMARK_SIMULATOR_ID:-}"
+CONFIGURATION="${LISTKIT_BENCHMARK_CONFIGURATION:-Debug}"
 export LISTKIT_BENCHMARK_ITERATIONS="${LISTKIT_BENCHMARK_ITERATIONS:-3}"
 export LISTKIT_BENCHMARK_IMPLEMENTATIONS="${LISTKIT_BENCHMARK_IMPLEMENTATIONS:-}"
 export LISTKIT_BENCHMARK_SCROLL_UPS="${LISTKIT_BENCHMARK_SCROLL_UPS:-2}"
 export LISTKIT_BENCHMARK_SCROLL_DOWNS="${LISTKIT_BENCHMARK_SCROLL_DOWNS:-1}"
+export LISTKIT_BENCHMARK_CONFIGURATION="$CONFIGURATION"
 
 if [[ -n "$SIMULATOR_ID" ]]; then
   DESTINATION="platform=iOS Simulator,id=$SIMULATOR_ID"
@@ -35,6 +37,7 @@ config = {
     ],
     "scrollUps": int(os.environ["LISTKIT_BENCHMARK_SCROLL_UPS"]),
     "scrollDowns": int(os.environ["LISTKIT_BENCHMARK_SCROLL_DOWNS"]),
+    "configuration": os.environ["LISTKIT_BENCHMARK_CONFIGURATION"],
 }
 
 with open(sys.argv[1], "w", encoding="utf-8") as file:
@@ -44,6 +47,7 @@ PY
 xcodebuild test \
   -project "$PROJECT" \
   -scheme BenchmarkApp \
+  -configuration "$CONFIGURATION" \
   -destination-timeout 30 \
   -destination "$DESTINATION"
 
