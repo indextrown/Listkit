@@ -48,9 +48,10 @@ public struct LKList<Content: View>: View {
         let items = data.map { element in
             LKItemModel(
                 id: element[keyPath: id],
-                base: element,
-                makeContent: { AnyView(rowContent(element)) }
-            )
+                base: element
+            ) {
+                rowContent(element)
+            }
         }
         self.model = LKListModel(
             sections: [
