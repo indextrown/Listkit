@@ -13,9 +13,67 @@ struct LKSupplementaryRegistrationKey: Hashable {
     let hostingStrategy: LKHostingStrategy
 }
 
+private struct LKCellRegistrationDescriptor: Hashable {
+    let reuseIdentifier: String
+    let hostingStrategy: LKHostingStrategy
+}
+
+private struct LKSupplementaryRegistrationDescriptor: Hashable {
+    let kind: LKSupplementaryKind
+    let reuseIdentifier: String
+    let hostingStrategy: LKHostingStrategy
+}
+
+private struct LKRegistrationSummary {
+    var cellDescriptors = Set<LKCellRegistrationDescriptor>()
+    var headerDescriptors = Set<LKSupplementaryRegistrationDescriptor>()
+    var footerDescriptors = Set<LKSupplementaryRegistrationDescriptor>()
+
+    init(model: LKListModel) {
+        for section in model.sections {
+            for item in section.items {
+                cellDescriptors.insert(
+                    LKCellRegistrationDescriptor(
+                        reuseIdentifier: item.reuseIdentifier,
+                        hostingStrategy: item.hostingStrategy
+                    )
+                )
+            }
+
+            if let header = section.header {
+                headerDescriptors.insert(
+                    LKSupplementaryRegistrationDescriptor(
+                        kind: header.kind,
+                        reuseIdentifier: header.reuseIdentifier,
+                        hostingStrategy: header.hostingStrategy
+                    )
+                )
+            }
+
+            if let footer = section.footer {
+                footerDescriptors.insert(
+                    LKSupplementaryRegistrationDescriptor(
+                        kind: footer.kind,
+                        reuseIdentifier: footer.reuseIdentifier,
+                        hostingStrategy: footer.hostingStrategy
+                    )
+                )
+            }
+        }
+    }
+}
+
+struct LKItemSizeKey: Hashable {
+    let sectionID: AnyHashable
+    let itemID: AnyHashable
+    let contentToken: AnyHashable?
+}
+
 struct LKSupplementarySizeKey: Hashable {
     let kind: String
-    let indexPath: IndexPath
+    let sectionID: AnyHashable
+    let supplementaryID: AnyHashable
+    let contentToken: AnyHashable?
 }
 
 private struct LKAppendOnlyUpdate {
@@ -45,7 +103,7 @@ final class LKCollectionViewAdapter: NSObject {
     private(set) var registeredCellKeys = Set<LKCellRegistrationKey>()
     private(set) var registeredHeaderKeys = Set<LKSupplementaryRegistrationKey>()
     private(set) var registeredFooterKeys = Set<LKSupplementaryRegistrationKey>()
-    private(set) var itemSizeStorage = [IndexPath: CGSize]()
+    private(set) var itemSizeStorage = [LKItemSizeKey: CGSize]()
     private(set) var supplementarySizeStorage = [LKSupplementarySizeKey: CGSize]()
     private(set) var lastReconfiguredItemIdentifiers = [LKItemIdentifier]()
     private(set) var lastDifferenceKitChangesetCount = 0
@@ -358,63 +416,58 @@ final class LKCollectionViewAdapter: NSObject {
         finishApply()
     }
 
-    func recordItemSize(_ size: CGSize, at indexPath: IndexPath) {
-        itemSizeStorage[indexPath] = size
+    func recordItemSize(_ size: CGSize, item: LKItemModel, sectionID: AnyHashable) {
+        let key = LKItemSizeKey(
+            sectionID: sectionID,
+            itemID: item.id,
+            contentToken: item.contentToken
+        )
+        itemSizeStorage[key] = size
     }
 
-    func recordSupplementarySize(_ size: CGSize, kind: String, at indexPath: IndexPath) {
-        let key = LKSupplementarySizeKey(kind: kind, indexPath: indexPath)
+    func recordSupplementarySize(
+        _ size: CGSize,
+        kind: String,
+        supplementary: LKSupplementaryModel,
+        sectionID: AnyHashable
+    ) {
+        let key = LKSupplementarySizeKey(
+            kind: kind,
+            sectionID: sectionID,
+            supplementaryID: supplementary.id,
+            contentToken: supplementary.contentToken
+        )
         supplementarySizeStorage[key] = size
     }
 
     func registerReuseIdentifiersIfNeeded(from model: LKListModel) {
+        registerReuseIdentifiersIfNeeded(from: LKRegistrationSummary(model: model))
+    }
+
+    private func registerReuseIdentifiersIfNeeded(from summary: LKRegistrationSummary) {
         guard let collectionView else {
             return
         }
 
-        var cellKeys = Set<LKCellRegistrationKey>()
-        var headerKeys = Set<LKSupplementaryRegistrationKey>()
-        var footerKeys = Set<LKSupplementaryRegistrationKey>()
-
-        for section in model.sections {
-            for item in section.items {
-                cellKeys.insert(
-                    LKCellRegistrationKey(
-                        reuseIdentifier: item.reuseIdentifier,
-                        hostingStrategy: item.hostingStrategy
-                    )
-                )
-            }
-
-            if let header = section.header {
-                headerKeys.insert(
-                    LKSupplementaryRegistrationKey(
-                        kind: UICollectionView.elementKindSectionHeader,
-                        reuseIdentifier: header.reuseIdentifier,
-                        hostingStrategy: header.hostingStrategy
-                    )
-                )
-            }
-
-            if let footer = section.footer {
-                footerKeys.insert(
-                    LKSupplementaryRegistrationKey(
-                        kind: UICollectionView.elementKindSectionFooter,
-                        reuseIdentifier: footer.reuseIdentifier,
-                        hostingStrategy: footer.hostingStrategy
-                    )
-                )
-            }
-        }
-
-        for key in cellKeys where registeredCellKeys.insert(key).inserted {
+        for descriptor in summary.cellDescriptors {
+            let key = LKCellRegistrationKey(
+                reuseIdentifier: descriptor.reuseIdentifier,
+                hostingStrategy: descriptor.hostingStrategy
+            )
+            guard registeredCellKeys.insert(key).inserted else { continue }
             collectionView.register(
                 LKHostingCollectionViewCell.self,
                 forCellWithReuseIdentifier: key.reuseIdentifier
             )
         }
 
-        for key in headerKeys where registeredHeaderKeys.insert(key).inserted {
+        for descriptor in summary.headerDescriptors {
+            let key = LKSupplementaryRegistrationKey(
+                kind: supplementaryElementKind(for: descriptor.kind),
+                reuseIdentifier: descriptor.reuseIdentifier,
+                hostingStrategy: descriptor.hostingStrategy
+            )
+            guard registeredHeaderKeys.insert(key).inserted else { continue }
             collectionView.register(
                 LKHostingSupplementaryView.self,
                 forSupplementaryViewOfKind: key.kind,
@@ -422,12 +475,30 @@ final class LKCollectionViewAdapter: NSObject {
             )
         }
 
-        for key in footerKeys where registeredFooterKeys.insert(key).inserted {
+        for descriptor in summary.footerDescriptors {
+            let key = LKSupplementaryRegistrationKey(
+                kind: supplementaryElementKind(for: descriptor.kind),
+                reuseIdentifier: descriptor.reuseIdentifier,
+                hostingStrategy: descriptor.hostingStrategy
+            )
+            guard registeredFooterKeys.insert(key).inserted else { continue }
             collectionView.register(
                 LKHostingSupplementaryView.self,
                 forSupplementaryViewOfKind: key.kind,
                 withReuseIdentifier: key.reuseIdentifier
             )
+        }
+
+    }
+
+    private func supplementaryElementKind(for kind: LKSupplementaryKind) -> String {
+        switch kind {
+        case .header:
+            UICollectionView.elementKindSectionHeader
+        case .footer:
+            UICollectionView.elementKindSectionFooter
+        case .custom(let kind):
+            kind
         }
     }
 
@@ -496,9 +567,12 @@ final class LKCollectionViewAdapter: NSObject {
             return
         }
 
-        let changedItems = changedContentItemIdentifiers(from: previousModel, to: model)
+        let changedItems = changedContentItemIdentifiers(
+            from: previousModel,
+            to: model
+        )
 
-        registerReuseIdentifiersIfNeeded(from: model)
+        registerReuseIdentifiersIfNeeded(from: LKRegistrationSummary(model: model))
         currentModel = model
 
         var snapshot = makeDiffableSnapshot(for: model)
@@ -637,7 +711,7 @@ final class LKCollectionViewAdapter: NSObject {
             indexPath: indexPath,
             sectionID: section.id
         ) { [weak self] size in
-            self?.recordItemSize(size, at: indexPath)
+            self?.recordItemSize(size, item: item, sectionID: section.id)
         }
         return cell
     }
@@ -658,7 +732,11 @@ final class LKCollectionViewAdapter: NSObject {
             supplementaryKind = .custom(kind)
         }
 
-        guard let supplementary = currentModel.supplementary(kind: supplementaryKind, at: indexPath) else {
+        guard
+            let sectionIndex = indexPath.lkSection,
+            let section = currentModel.section(at: sectionIndex),
+            let supplementary = currentModel.supplementary(kind: supplementaryKind, at: indexPath)
+        else {
             collectionView.register(
                 UICollectionReusableView.self,
                 forSupplementaryViewOfKind: kind,
@@ -677,7 +755,12 @@ final class LKCollectionViewAdapter: NSObject {
             for: indexPath
         )
         (view as? LKHostingSupplementaryView)?.render(supplementary: supplementary) { [weak self] size in
-            self?.recordSupplementarySize(size, kind: kind, at: indexPath)
+            self?.recordSupplementarySize(
+                size,
+                kind: kind,
+                supplementary: supplementary,
+                sectionID: section.id
+            )
         }
         return view
     }
@@ -690,26 +773,26 @@ final class LKCollectionViewAdapter: NSObject {
             return []
         }
 
-        var oldItems = [LKItemIdentifier: LKItemModel]()
+        let oldModelIndex = LKListContentTokenIndex(model: oldModel)
+        var changedItems = [LKItemIdentifier]()
 
-        for section in oldModel.sections {
+        for section in newModel.sections {
             for item in section.items {
-                oldItems[LKItemIdentifier(section: section, item: item)] = item
+                let identity = LKModelItemIdentity(
+                    sectionID: section.id,
+                    itemID: item.id
+                )
+                guard
+                    oldModelIndex.containsItem(identity),
+                    oldModelIndex.contentToken(for: identity) != item.contentToken
+                else {
+                    continue
+                }
+                changedItems.append(LKItemIdentifier(sectionID: section.id, itemID: item.id))
             }
         }
 
-        return newModel.sections.flatMap { section in
-            section.items.compactMap { item in
-                let identifier = LKItemIdentifier(section: section, item: item)
-                guard
-                    let oldItem = oldItems[identifier],
-                    oldItem.contentToken != item.contentToken
-                else {
-                    return nil
-                }
-                return identifier
-            }
-        }
+        return changedItems
     }
 
     private func appendOnlyUpdate(from oldModel: LKListModel, to newModel: LKListModel) -> LKAppendOnlyUpdate? {
@@ -718,6 +801,7 @@ final class LKCollectionViewAdapter: NSObject {
         }
 
         var insertedIndexPaths = [IndexPath]()
+        insertedIndexPaths.reserveCapacity(max(newModel.itemCount - oldModel.itemCount, 0))
 
         for sectionIndex in oldModel.sections.indices {
             let oldSection = oldModel.sections[sectionIndex]
@@ -725,8 +809,7 @@ final class LKCollectionViewAdapter: NSObject {
 
             guard
                 oldSection.matchesAppendOnlyMetadata(of: newSection),
-                oldSection.items.count <= newSection.items.count,
-                newSection.items.prefix(oldSection.items.count).elementsEqual(oldSection.items)
+                oldSection.matchesAppendOnlyPrefix(of: newSection)
             else {
                 return nil
             }
@@ -1160,6 +1243,12 @@ final class LKCollectionViewAdapter: NSObject {
     }
 }
 
+private extension LKListEvents {
+    var hasPrefetchHandlers: Bool {
+        didPrefetch != nil || didCancelPrefetch != nil
+    }
+}
+
 private extension LKListModel {
     var hasAnyContentToken: Bool {
         sections.contains { section in
@@ -1168,9 +1257,11 @@ private extension LKListModel {
     }
 }
 
-private extension LKListEvents {
-    var hasPrefetchHandlers: Bool {
-        didPrefetch != nil || didCancelPrefetch != nil
+private extension LKListModel {
+    var itemCount: Int {
+        sections.reduce(0) { count, section in
+            count + section.items.count
+        }
     }
 }
 
@@ -1186,6 +1277,31 @@ private extension LKSectionModel {
         #else
         return coreMatches
         #endif
+    }
+
+    func matchesAppendOnlyPrefix(of other: LKSectionModel) -> Bool {
+        let oldCount = items.count
+        guard oldCount <= other.items.count else {
+            return false
+        }
+
+        guard oldCount > 0 else {
+            return true
+        }
+
+        guard
+            items[0] == other.items[0],
+            items[oldCount - 1] == other.items[oldCount - 1]
+        else {
+            return false
+        }
+
+        if oldCount > 2 {
+            for itemIndex in 1..<(oldCount - 1) where items[itemIndex] != other.items[itemIndex] {
+                return false
+            }
+        }
+        return true
     }
 }
 
