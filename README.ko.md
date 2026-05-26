@@ -237,7 +237,7 @@ UIKit preview controller, targeted preview, commit animator가 필요하면 List
 
 [Examples/BenchmarkApp](./Examples/BenchmarkApp) 벤치마크 프로젝트는 같은 row model을 `ListKit`, SwiftUI `List`, `ScrollView + LazyVStack`으로 렌더링해서 비교합니다.
 
-![ListKit benchmark sample chart](./Benchmarks/results/listkit-benchmark-sample.svg)
+![ListKit benchmark sample chart](./Benchmarks/results/simulator-results.svg)
 
 현재 저장소에 포함된 그래프는 [Benchmarks/results/sample-results.csv](./Benchmarks/results/sample-results.csv)에서 생성한 샘플 데이터입니다. 문서와 그래프 생성 흐름을 보여주기 위한 값이며, 공식 성능 수치로 보지 않아야 합니다.
 

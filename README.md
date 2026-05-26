@@ -335,7 +335,7 @@ In debug builds, invalid model identity such as duplicate section or item IDs st
 
 The benchmark project in [Examples/BenchmarkApp](./Examples/BenchmarkApp) compares the same row model rendered with `ListKit`, SwiftUI `List`, and `ScrollView + LazyVStack`.
 
-![ListKit benchmark sample chart](./Benchmarks/results/listkit-benchmark-sample.svg)
+![ListKit benchmark sample chart](./Benchmarks/results/simulator-results.svg)
 
 The checked-in chart is generated from [Benchmarks/results/sample-results.csv](./Benchmarks/results/sample-results.csv). It is sample data for documenting the workflow, not a published performance claim.
 
