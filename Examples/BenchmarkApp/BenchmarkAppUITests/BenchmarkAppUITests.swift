@@ -1,6 +1,13 @@
 import XCTest
 
 final class BenchmarkAppUITests: XCTestCase {
+    private struct BenchmarkConfig {
+        let iterations: Int?
+        let implementations: [String]?
+        let scrollUps: Int?
+        let scrollDowns: Int?
+    }
+
     private struct Scenario {
         let buttonTitle: String
         let csvTitle: String
@@ -25,13 +32,18 @@ final class BenchmarkAppUITests: XCTestCase {
         let memoryMegabytes: Double?
     }
 
+    private enum ScrollDirection {
+        case up
+        case down
+    }
+
     func testBenchmarksAndWriteCSV() throws {
         let app = XCUIApplication()
         app.terminate()
         app.launch()
 
         XCTAssertTrue(app.buttons["run-scenario-button"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["benchmark-machine-result"].waitForExistence(timeout: 10))
+        XCTAssertTrue(benchmarkMachineResult(app: app).waitForExistence(timeout: 10))
 
         let implementations = configuredValues(
             environmentName: "LISTKIT_BENCHMARK_IMPLEMENTATIONS",
@@ -100,20 +112,17 @@ final class BenchmarkAppUITests: XCTestCase {
 
                 let start = CFAbsoluteTimeGetCurrent()
                 for _ in 0..<scrollUpCount() {
-                    app.swipeUp()
-                    runID += 1
-                    app.buttons["sample-scroll-memory-button"].tap()
-                    _ = waitForRun(app: app, runID: runID)
+                    performBenchmarkScroll(app: app, direction: .up)
                 }
                 for _ in 0..<scrollDownCount() {
-                    app.swipeDown()
-                    runID += 1
-                    app.buttons["sample-scroll-memory-button"].tap()
-                    _ = waitForRun(app: app, runID: runID)
+                    performBenchmarkScroll(app: app, direction: .down)
                 }
+                runID += 1
+                app.buttons["sample-scroll-memory-button"].tap()
+                _ = waitForRun(app: app, runID: runID)
 
                 scrollMeasurements.append((CFAbsoluteTimeGetCurrent() - start) * 1_000)
-                let parsedResult = parseResult(app.staticTexts["benchmark-machine-result"].label)
+                let parsedResult = parseResult(benchmarkMachineResultValue(app: app))
                 if let memoryMegabytes = parsedResult?.memoryMegabytes {
                     scrollMemoryMeasurements.append(memoryMegabytes)
                 }
@@ -134,13 +143,38 @@ final class BenchmarkAppUITests: XCTestCase {
         try writeCSV(results)
     }
 
+    private func performBenchmarkScroll(app: XCUIApplication, direction: ScrollDirection) {
+        let scrollTarget = benchmarkScrollTarget(app: app)
+        switch direction {
+        case .up:
+            scrollTarget.swipeUp()
+        case .down:
+            scrollTarget.swipeDown()
+        }
+    }
+
+    private func benchmarkScrollTarget(app: XCUIApplication) -> XCUIElement {
+        let collectionView = app.collectionViews.firstMatch
+        if collectionView.exists {
+            return collectionView
+        }
+
+        let scrollView = app.scrollViews.firstMatch
+        if scrollView.exists {
+            return scrollView
+        }
+
+        return app
+    }
+
     private func waitForRun(app: XCUIApplication, runID: Int) -> ParsedResult {
-        let result = app.staticTexts["benchmark-machine-result"]
-        let predicate = NSPredicate(format: "label CONTAINS %@", "run=\(runID)")
+        let result = benchmarkMachineResult(app: app)
+        let predicate = NSPredicate(format: "value CONTAINS %@", "run=\(runID)")
         expectation(for: predicate, evaluatedWith: result)
         waitForExpectations(timeout: 10)
-        guard let parsedResult = parseResult(result.label) else {
-            XCTFail("Could not parse benchmark result label: \(result.label)")
+        let value = benchmarkMachineResultValue(app: app)
+        guard let parsedResult = parseResult(value) else {
+            XCTFail("Could not parse benchmark result value: \(value)")
             return ParsedResult(
                 runID: runID,
                 implementation: "",
@@ -151,6 +185,14 @@ final class BenchmarkAppUITests: XCTestCase {
             )
         }
         return parsedResult
+    }
+
+    private func benchmarkMachineResult(app: XCUIApplication) -> XCUIElement {
+        app.otherElements["benchmark-machine-result"]
+    }
+
+    private func benchmarkMachineResultValue(app: XCUIApplication) -> String {
+        benchmarkMachineResult(app: app).value as? String ?? ""
     }
 
     private func writeCSV(_ results: [Result]) throws {
@@ -174,7 +216,11 @@ final class BenchmarkAppUITests: XCTestCase {
     }
 
     private func benchmarkIterations() -> Int {
-        configuredPositiveInt(environmentName: "LISTKIT_BENCHMARK_ITERATIONS", defaultValue: 3)
+        configuredPositiveInt(
+            environmentName: "LISTKIT_BENCHMARK_ITERATIONS",
+            configValue: benchmarkConfig().iterations,
+            defaultValue: 3
+        )
     }
 
     private func configuredValues(environmentName: String, defaults: [String]) -> [String] {
@@ -182,28 +228,61 @@ final class BenchmarkAppUITests: XCTestCase {
             let value = ProcessInfo.processInfo.environment[environmentName],
             value.isEmpty == false
         else {
-            return defaults
+            return benchmarkConfig().implementations?.isEmpty == false ? benchmarkConfig().implementations ?? defaults : defaults
         }
         return value.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
     }
 
     private func scrollUpCount() -> Int {
-        configuredPositiveInt(environmentName: "LISTKIT_BENCHMARK_SCROLL_UPS", defaultValue: 4)
+        configuredPositiveInt(
+            environmentName: "LISTKIT_BENCHMARK_SCROLL_UPS",
+            configValue: benchmarkConfig().scrollUps,
+            defaultValue: 4
+        )
     }
 
     private func scrollDownCount() -> Int {
-        configuredPositiveInt(environmentName: "LISTKIT_BENCHMARK_SCROLL_DOWNS", defaultValue: 2)
+        configuredPositiveInt(
+            environmentName: "LISTKIT_BENCHMARK_SCROLL_DOWNS",
+            configValue: benchmarkConfig().scrollDowns,
+            defaultValue: 2
+        )
     }
 
-    private func configuredPositiveInt(environmentName: String, defaultValue: Int) -> Int {
+    private func configuredPositiveInt(
+        environmentName: String,
+        configValue: Int?,
+        defaultValue: Int
+    ) -> Int {
         guard
             let value = ProcessInfo.processInfo.environment[environmentName],
             let count = Int(value),
             count >= 0
         else {
-            return defaultValue
+            return configValue.map { max($0, 0) } ?? defaultValue
         }
         return count
+    }
+
+    private func benchmarkConfig() -> BenchmarkConfig {
+        let configURL = repositoryRoot()
+            .appendingPathComponent("Benchmarks")
+            .appendingPathComponent("results")
+            .appendingPathComponent("benchmark-config.json")
+
+        guard
+            let data = try? Data(contentsOf: configURL),
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else {
+            return BenchmarkConfig(iterations: nil, implementations: nil, scrollUps: nil, scrollDowns: nil)
+        }
+
+        return BenchmarkConfig(
+            iterations: object["iterations"] as? Int,
+            implementations: object["implementations"] as? [String],
+            scrollUps: object["scrollUps"] as? Int,
+            scrollDowns: object["scrollDowns"] as? Int
+        )
     }
 
     private func csvString(for results: [Result]) -> String {
@@ -251,7 +330,7 @@ final class BenchmarkAppUITests: XCTestCase {
     }
 
     private func lastItemCount(app: XCUIApplication, fallback: Int) -> Int {
-        parseResult(app.staticTexts["benchmark-machine-result"].label)?.itemCount ?? fallback
+        parseResult(benchmarkMachineResultValue(app: app))?.itemCount ?? fallback
     }
 
     private func implementationID(for title: String) -> String {
