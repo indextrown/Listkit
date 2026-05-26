@@ -34,6 +34,29 @@ final class LKListModelTests: XCTestCase {
         XCTAssertNil(model.item(at: .lkIndexPath(item: 0, section: 4)))
     }
 
+    func testModelIndexLooksUpItemIDInConstantTimeMap() {
+        let model = LKListModel(
+            sections: [
+                LKSectionModel(id: "first", items: [
+                    LKItemModel(id: "a"),
+                    LKItemModel(id: "duplicate"),
+                ]),
+                LKSectionModel(id: "second", items: [
+                    LKItemModel(id: "b"),
+                    LKItemModel(id: "duplicate"),
+                ]),
+            ]
+        )
+
+        let index = LKListModelIndex(model: model)
+
+        XCTAssertEqual(index.indexPath(forItemID: "a"), .lkIndexPath(item: 0, section: 0))
+        XCTAssertEqual(index.indexPath(forItemID: "b"), .lkIndexPath(item: 0, section: 1))
+        XCTAssertEqual(index.indexPath(forItemID: "duplicate"), .lkIndexPath(item: 1, section: 0))
+        XCTAssertNil(index.indexPath(forItemID: "missing"))
+        XCTAssertEqual(index.itemIDs, Set<AnyHashable>(["a", "duplicate", "b"]))
+    }
+
     func testSupplementaryLookupReturnsHeaderFooterAndCustomSupplementary() {
         let header = LKSupplementaryModel(id: "header", kind: .header)
         let footer = LKSupplementaryModel(id: "footer", kind: .footer)
