@@ -10,7 +10,7 @@ public struct LKSupplementaryModel: Equatable {
     public let hostingStrategy: LKHostingStrategy
     public let contentToken: AnyHashable?
     #if canImport(SwiftUI)
-    let makeContent: (@MainActor () -> AnyView)?
+    let content: LKAnyViewContent?
     #endif
 
     public init(
@@ -26,25 +26,25 @@ public struct LKSupplementaryModel: Equatable {
         self.hostingStrategy = hostingStrategy
         self.contentToken = contentToken
         #if canImport(SwiftUI)
-        self.makeContent = nil
+        self.content = nil
         #endif
     }
 
     #if canImport(SwiftUI)
-    init(
+    init<Content: View>(
         id: some Hashable,
         kind: LKSupplementaryKind,
         reuseIdentifier: String = "ListKit.LKHostingSupplementaryView",
         hostingStrategy: LKHostingStrategy = .hostingConfiguration,
         contentToken: AnyHashable? = nil,
-        makeContent: @escaping @MainActor () -> AnyView
+        @ViewBuilder content: @escaping @MainActor () -> Content
     ) {
         self.id = AnyHashable(id)
         self.kind = kind
         self.reuseIdentifier = reuseIdentifier
         self.hostingStrategy = hostingStrategy
         self.contentToken = contentToken
-        self.makeContent = makeContent
+        self.content = LKAnyViewContent(content)
     }
     #endif
 
