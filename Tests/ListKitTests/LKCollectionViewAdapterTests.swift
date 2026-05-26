@@ -1423,21 +1423,38 @@ final class LKCollectionViewAdapterTests: XCTestCase {
     func testAdapterStoresCellAndSupplementarySizeCallbacks() {
         let collectionView = makeCollectionView()
         let adapter = LKCollectionViewAdapter(collectionView: collectionView)
-        let indexPath = IndexPath.lkIndexPath(item: 0, section: 0)
+        let item = LKItemModel(id: "item", contentToken: "row-v1")
+        let header = LKSupplementaryModel(id: "header", kind: .header, contentToken: "header-v1")
+        let sectionID = AnyHashable("section")
         let itemSize = CGSize(width: 320, height: 44)
         let supplementarySize = CGSize(width: 320, height: 28)
 
-        adapter.recordItemSize(itemSize, at: indexPath)
+        adapter.recordItemSize(itemSize, item: item, sectionID: sectionID)
         adapter.recordSupplementarySize(
             supplementarySize,
             kind: UICollectionView.elementKindSectionHeader,
-            at: indexPath
+            supplementary: header,
+            sectionID: sectionID
         )
 
-        XCTAssertEqual(adapter.itemSizeStorage[indexPath], itemSize)
+        XCTAssertEqual(
+            adapter.itemSizeStorage[
+                LKItemSizeKey(
+                    sectionID: sectionID,
+                    itemID: AnyHashable("item"),
+                    contentToken: AnyHashable("row-v1")
+                )
+            ],
+            itemSize
+        )
         XCTAssertEqual(
             adapter.supplementarySizeStorage[
-                LKSupplementarySizeKey(kind: UICollectionView.elementKindSectionHeader, indexPath: indexPath)
+                LKSupplementarySizeKey(
+                    kind: UICollectionView.elementKindSectionHeader,
+                    sectionID: sectionID,
+                    supplementaryID: AnyHashable("header"),
+                    contentToken: AnyHashable("header-v1")
+                )
             ],
             supplementarySize
         )
