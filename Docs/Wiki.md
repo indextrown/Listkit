@@ -1,0 +1,276 @@
+# ListKit Wiki
+
+이 문서는 구현 결정과 다음 작업 때 다시 참고할 맥락을 저장하는 내부 위키입니다.
+
+## AnyView 없는 SwiftUI Hosting
+
+### 배경
+
+ListKit은 SwiftUI 문법으로 row, header, footer를 선언하지만 내부 렌더링은 `UICollectionView`에서 수행합니다. 이 구조에서는 서로 다른 SwiftUI view 타입을 하나의 list model 안에 담아야 합니다.
+
+초기 구현은 이 문제를 단순하게 풀기 위해 각 row와 supplementary content를 `() -> AnyView` factory로 저장했습니다.
+
+```swift
+struct LKItemModel {
+    let makeContent: @MainActor () -> AnyView
+}
+
+LKItemModel {
+    AnyView(MessageRow(message: message))
+}
+```
+
+이 방식은 구현이 쉽지만, 모든 사용자 view가 UIKit hosting으로 넘어가기 전에 먼저 `AnyView`로 지워집니다. `AnyView` 자체가 항상 병목이라는 뜻은 아니지만, ListKit의 기본 렌더링 경로에서 불필요한 wrapper를 강제하는 구조였습니다.
+
+현재 구현은 사용자 view 자체를 `AnyView`로 감싸지 않고, "hosting 작업"만 타입 소거합니다.
+
+### 핵심 아이디어
+
+새 구조의 중심 타입은 `LKAnyViewContent`입니다.
+
+파일:
+
+- `Sources/ListKit/SwiftUI/LKAnyViewContent.swift`
+- `Sources/ListKit/Core/LKItemModel.swift`
+- `Sources/ListKit/Core/LKSupplementaryModel.swift`
+- `Sources/ListKit/UIKit/LKHostingCollectionViewCell.swift`
+- `Sources/ListKit/UIKit/LKHostingSupplementaryView.swift`
+
+`LKAnyViewContent`는 public API가 아니라 내부 타입입니다. 역할은 heterogeneous SwiftUI content를 list model에 저장하되, 실제 렌더링 시점에는 concrete `Content: View`를 유지한 상태로 `UIHostingConfiguration`을 만들게 하는 것입니다.
+
+```swift
+struct LKAnyViewContent {
+    private let box: any LKAnyViewContentBox
+
+    init<Content: View>(@ViewBuilder _ makeContent: @escaping @MainActor () -> Content) {
+        self.box = LKViewContentBox(makeContent: makeContent)
+    }
+}
+
+private protocol LKAnyViewContentBox {
+    @MainActor
+    func makeCellContentConfiguration(
+        state: LKCellState,
+        indexPath: IndexPath?,
+        sectionID: AnyHashable?,
+        itemID: AnyHashable
+    ) -> any UIContentConfiguration
+
+    @MainActor
+    func makeSupplementaryContentView(state: LKCellState) -> UIView
+}
+
+private struct LKViewContentBox<Content: View>: LKAnyViewContentBox {
+    let makeContent: @MainActor () -> Content
+}
+```
+
+타입 소거 대상은 SwiftUI view 값이 아니라 `makeCellContentConfiguration`, `makeSupplementaryContentView` 같은 UIKit hosting operation입니다.
+
+### Row 저장 흐름
+
+기존 `LKItemModel`은 `makeContent: (() -> AnyView)?`를 저장했습니다.
+
+현재는 `content: LKAnyViewContent?`를 저장합니다.
+
+```swift
+public struct LKItemModel: Equatable {
+    public let id: AnyHashable
+    public let base: Any?
+    public let reuseIdentifier: String
+    public let hostingStrategy: LKHostingStrategy
+    public let contentToken: AnyHashable?
+
+    #if canImport(SwiftUI)
+    var events: LKRowEvents
+    let content: LKAnyViewContent?
+    #endif
+}
+```
+
+SwiftUI 전용 initializer는 `AnyView`를 받지 않고 generic `Content: View` builder를 받습니다.
+
+```swift
+init<Content: View>(
+    id: some Hashable,
+    base: Any? = nil,
+    reuseIdentifier: String = "ListKit.LKHostingCollectionViewCell",
+    hostingStrategy: LKHostingStrategy = .hostingConfiguration,
+    contentToken: AnyHashable? = nil,
+    events: LKRowEvents = LKRowEvents(),
+    @ViewBuilder content: @escaping @MainActor () -> Content
+) {
+    self.id = AnyHashable(id)
+    self.base = base
+    self.reuseIdentifier = reuseIdentifier
+    self.hostingStrategy = hostingStrategy
+    self.contentToken = contentToken
+    self.events = events
+    self.content = LKAnyViewContent(content)
+}
+```
+
+`LKList`와 `LKRow`는 더 이상 `AnyView(rowContent(element))`를 만들지 않습니다.
+
+```swift
+LKItemModel(
+    id: element[keyPath: id],
+    base: element
+) {
+    rowContent(element)
+}
+```
+
+### Header/Footer 저장 흐름
+
+`LKSupplementaryModel`도 같은 방식으로 바뀌었습니다.
+
+기존에는 header/footer content를 `() -> AnyView`로 저장했습니다. 현재는 `LKAnyViewContent`를 저장합니다.
+
+```swift
+public struct LKSupplementaryModel: Equatable {
+    public let id: AnyHashable
+    public let kind: LKSupplementaryKind
+    public let reuseIdentifier: String
+    public let hostingStrategy: LKHostingStrategy
+    public let contentToken: AnyHashable?
+
+    #if canImport(SwiftUI)
+    let content: LKAnyViewContent?
+    #endif
+}
+```
+
+`LKSection`의 header/footer builder도 `AnyView(header())`, `AnyView(footer())`를 만들지 않습니다.
+
+```swift
+LKSupplementaryModel(
+    id: AnyHashable(id),
+    kind: .header
+) {
+    header()
+}
+```
+
+### Cell 렌더링 흐름
+
+`LKHostingCollectionViewCell`은 `LKItemModel.content`를 꺼내서 content configuration 생성을 위임합니다.
+
+```swift
+guard let content = item.content else {
+    contentConfiguration = nil
+    return
+}
+
+contentConfiguration = content.makeCellContentConfiguration(
+    state: cellState,
+    indexPath: indexPath,
+    sectionID: sectionID,
+    itemID: item.id
+)
+```
+
+실제 `UIHostingConfiguration`은 generic box 안에서 만들어집니다.
+
+```swift
+UIHostingConfiguration {
+    makeContent()
+        .environment(\.lkCellState, state)
+        .environment(\.listKitIndexPath, indexPath)
+        .environment(\.listKitSectionID, sectionID)
+        .environment(\.listKitItemID, itemID)
+}
+```
+
+이 지점에서 `makeContent()`의 반환 타입은 여전히 concrete `Content: View`입니다. ListKit이 `AnyView`를 추가로 씌우지 않습니다.
+
+### Supplementary 렌더링 흐름
+
+`LKHostingSupplementaryView`도 같은 구조입니다.
+
+```swift
+guard let content = supplementary.content else {
+    hostedContentView = nil
+    return
+}
+
+let contentView = content.makeSupplementaryContentView(state: state)
+```
+
+box 내부에서는 supplementary용 `UIHostingConfiguration`을 만들고 `makeContentView()`로 UIKit view를 얻습니다.
+
+```swift
+UIHostingConfiguration {
+    makeContent()
+        .environment(\.lkCellState, state)
+}.makeContentView()
+```
+
+현재 supplementary에는 cell처럼 index path, section ID, item ID environment를 모두 주입하지 않습니다. 이후 header/footer context를 SwiftUI environment로 더 노출할 때 이 경로를 확장하면 됩니다.
+
+### 왜 view가 아니라 hosting operation을 타입 소거했나
+
+SwiftUI view 타입을 직접 하나의 배열에 저장하려면 결국 타입 소거가 필요합니다. 하지만 타입 소거의 위치를 어디에 두느냐가 중요합니다.
+
+이전 구조:
+
+1. 사용자 builder가 concrete `Content: View`를 만듭니다.
+2. ListKit이 즉시 `AnyView`로 감쌉니다.
+3. cell이 `AnyView`를 다시 `UIHostingConfiguration`에 넣습니다.
+
+현재 구조:
+
+1. 사용자 builder의 concrete `Content: View` factory를 generic box가 보관합니다.
+2. list model은 box protocol existential만 저장합니다.
+3. cell이 렌더링될 때 box가 concrete `Content`로 `UIHostingConfiguration`을 만듭니다.
+
+즉, heterogeneity는 유지하되 SwiftUI 렌더링 트리에 `AnyView` wrapper를 추가하지 않는 방향입니다.
+
+### 기대 효과와 한계
+
+기대 효과:
+
+- ListKit 기본 hosting 경로에서 불필요한 `AnyView` wrapper를 제거합니다.
+- public API는 기존처럼 `@ViewBuilder`를 유지합니다.
+- row/header/footer model은 heterogeneous content를 계속 저장할 수 있습니다.
+- cell state, index path, section ID, item ID environment 주입 위치가 한 타입에 모입니다.
+
+한계:
+
+- 모든 화면에서 성능 향상을 보장하지 않습니다.
+- 실제 비용은 row body 계산, SwiftUI diffing, `UIHostingConfiguration`, collection view update 방식에 더 크게 좌우될 수 있습니다.
+- `LKAnyViewContent` 자체는 여전히 protocol existential을 사용합니다. 제거한 것은 SwiftUI view tree에 들어가는 `AnyView` wrapper입니다.
+- iOS 16의 `UIHostingConfiguration` 경로를 기준으로 정리되어 있습니다. `UIHostingController` fallback을 추가하면 같은 abstraction 아래에 별도 operation을 넣어야 합니다.
+
+### 관련 벤치마크에서 관찰한 점
+
+`Benchmarks/results/simulator-results.csv` 기준으로, 업데이트 시나리오의 성능은 hosting wrapper 하나보다 update engine 전략의 영향이 큽니다.
+
+특히:
+
+- `Append 250`에서는 `ListKit DifferenceKit`이 `ListKit Diffable`보다 빠르게 측정되었습니다.
+- `Shuffle`에서는 대규모 reorder를 그대로 animated diff로 처리하는 것보다 reload fallback이 유리할 수 있습니다.
+- `Replace`는 모든 구현체가 거의 비슷해서 row hosting보다 측정 overhead나 단순 state 교체 비용이 더 커 보입니다.
+- `Scroll memory peak`은 update benchmark가 아니라 UI test scroll pass 시간이므로 별도 해석해야 합니다.
+
+따라서 AnyView 제거는 기본 렌더링 경로 정리로 보고, 성능 주장은 별도 device/release benchmark로만 해야 합니다.
+
+### 다음에 이어서 볼 때 체크할 것
+
+1. `LKAnyViewContent`가 public API로 노출되지 않는지 확인합니다.
+2. `LKItemModel`과 `LKSupplementaryModel`의 `Equatable` 비교가 content closure를 비교하지 않는지 확인합니다.
+3. `contentToken`은 여전히 content equality 판단용 metadata로만 사용합니다.
+4. supplementary environment가 부족하면 `makeSupplementaryContentView` 인자에 section ID, kind, index path를 추가하는 방향을 검토합니다.
+5. `UIHostingController` fallback을 만들 경우 `LKAnyViewContentBox`에 fallback operation을 추가하되 public initializer는 유지합니다.
+6. 성능 문서에는 "AnyView 제거가 항상 빠르다"라고 쓰지 않습니다. "ListKit 기본 렌더링 경로에서 추가 AnyView wrapper를 만들지 않는다"라고 표현합니다.
+
+### 관련 커밋
+
+- `568d401 feat: AnyView 없는 콘텐츠 박스 추가`
+- `8ce2527 feat: 아이템 모델 콘텐츠 저장 방식 개선`
+- `fac3a98 feat: 보조 뷰 콘텐츠 저장 방식 개선`
+- `f71cf28 feat: 리스트 초기화 콘텐츠 빌더 정리`
+- `b838fc4 feat: 행 콘텐츠 빌더 경로 정리`
+- `a157289 feat: 섹션 보조 뷰 빌더 경로 정리`
+- `28c0e99 fix: 셀 호스팅 콘텐츠 구성 경로 수정`
+- `51289b7 fix: 보조 뷰 호스팅 콘텐츠 구성 경로 수정`
