@@ -11,16 +11,39 @@ final class BenchmarkAppUITests: XCTestCase {
         let implementation: String
         let scenario: String
         let itemCount: Int
-        let medianMilliseconds: Double
+        let medianAppMilliseconds: Double
+        let medianXCTestMilliseconds: Double
+        let medianMemoryMegabytes: Double?
+    }
+
+    private struct ParsedResult {
+        let runID: Int
+        let implementation: String
+        let scenario: String
+        let itemCount: Int
+        let appMilliseconds: Double
+        let memoryMegabytes: Double?
     }
 
     func testBenchmarksAndWriteCSV() throws {
         let app = XCUIApplication()
+        app.terminate()
         app.launch()
 
         XCTAssertTrue(app.buttons["run-scenario-button"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["benchmark-machine-result"].waitForExistence(timeout: 10))
 
-        let implementations = ["ListKit", "SwiftUI List", "LazyVStack"]
+        let implementations = configuredValues(
+            environmentName: "LISTKIT_BENCHMARK_IMPLEMENTATIONS",
+            defaults: [
+                "ListKit Diffable",
+                "ListKit DifferenceKit",
+                "ListKit Reload",
+                "SwiftUI List",
+                "LazyVStack",
+                "UIKit Collection",
+            ]
+        )
         let scenarios = [
             Scenario(buttonTitle: "Load", csvTitle: "Initial load", itemCount: 1_000),
             Scenario(buttonTitle: "Append", csvTitle: "Append 250", itemCount: 1_250),
@@ -32,39 +55,102 @@ final class BenchmarkAppUITests: XCTestCase {
         var results = [Result]()
 
         for implementation in implementations {
-            app.buttons[implementation].tap()
+            let implementationButtonID = "implementation-\(implementationID(for: implementation))"
+            XCTAssertTrue(app.buttons[implementationButtonID].waitForExistence(timeout: 5))
+            app.buttons[implementationButtonID].tap()
 
             for scenario in scenarios {
-                app.buttons[scenario.buttonTitle].tap()
+                let scenarioButtonID = "scenario-\(scenarioID(for: scenario.buttonTitle))"
+                XCTAssertTrue(app.buttons[scenarioButtonID].waitForExistence(timeout: 5))
+                app.buttons[scenarioButtonID].tap()
 
-                var measurements = [Double]()
+                var appMeasurements = [Double]()
+                var xctestMeasurements = [Double]()
+                var memoryMeasurements = [Double]()
                 for _ in 0..<iterations {
                     runID += 1
                     let start = CFAbsoluteTimeGetCurrent()
                     app.buttons["run-scenario-button"].tap()
-                    waitForRun(app: app, runID: runID)
-                    measurements.append((CFAbsoluteTimeGetCurrent() - start) * 1_000)
+                    let parsedResult = waitForRun(app: app, runID: runID)
+                    xctestMeasurements.append((CFAbsoluteTimeGetCurrent() - start) * 1_000)
+                    appMeasurements.append(parsedResult.appMilliseconds)
+                    if let memoryMegabytes = parsedResult.memoryMegabytes {
+                        memoryMeasurements.append(memoryMegabytes)
+                    }
                 }
 
                 results.append(
                     Result(
                         implementation: implementation,
                         scenario: scenario.csvTitle,
-                        itemCount: scenario.itemCount,
-                        medianMilliseconds: median(measurements)
+                        itemCount: appMeasurements.isEmpty ? scenario.itemCount : lastItemCount(app: app, fallback: scenario.itemCount),
+                        medianAppMilliseconds: median(appMeasurements),
+                        medianXCTestMilliseconds: median(xctestMeasurements),
+                        medianMemoryMegabytes: memoryMeasurements.isEmpty ? nil : median(memoryMeasurements)
                     )
                 )
             }
+
+            var scrollMeasurements = [Double]()
+            var scrollMemoryMeasurements = [Double]()
+            for _ in 0..<iterations {
+                runID += 1
+                app.buttons["reset-scroll-memory-button"].tap()
+                _ = waitForRun(app: app, runID: runID)
+
+                let start = CFAbsoluteTimeGetCurrent()
+                for _ in 0..<scrollUpCount() {
+                    app.swipeUp()
+                    runID += 1
+                    app.buttons["sample-scroll-memory-button"].tap()
+                    _ = waitForRun(app: app, runID: runID)
+                }
+                for _ in 0..<scrollDownCount() {
+                    app.swipeDown()
+                    runID += 1
+                    app.buttons["sample-scroll-memory-button"].tap()
+                    _ = waitForRun(app: app, runID: runID)
+                }
+
+                scrollMeasurements.append((CFAbsoluteTimeGetCurrent() - start) * 1_000)
+                let parsedResult = parseResult(app.staticTexts["benchmark-machine-result"].label)
+                if let memoryMegabytes = parsedResult?.memoryMegabytes {
+                    scrollMemoryMeasurements.append(memoryMegabytes)
+                }
+            }
+
+            results.append(
+                Result(
+                    implementation: implementation,
+                    scenario: "Scroll memory peak",
+                    itemCount: lastItemCount(app: app, fallback: 1_000),
+                    medianAppMilliseconds: median(scrollMeasurements),
+                    medianXCTestMilliseconds: median(scrollMeasurements),
+                    medianMemoryMegabytes: scrollMemoryMeasurements.isEmpty ? nil : median(scrollMemoryMeasurements)
+                )
+            )
         }
 
         try writeCSV(results)
     }
 
-    private func waitForRun(app: XCUIApplication, runID: Int) {
-        let result = app.staticTexts["benchmark-result"]
-        let predicate = NSPredicate(format: "label CONTAINS %@", "run \(runID)")
+    private func waitForRun(app: XCUIApplication, runID: Int) -> ParsedResult {
+        let result = app.staticTexts["benchmark-machine-result"]
+        let predicate = NSPredicate(format: "label CONTAINS %@", "run=\(runID)")
         expectation(for: predicate, evaluatedWith: result)
         waitForExpectations(timeout: 10)
+        guard let parsedResult = parseResult(result.label) else {
+            XCTFail("Could not parse benchmark result label: \(result.label)")
+            return ParsedResult(
+                runID: runID,
+                implementation: "",
+                scenario: "",
+                itemCount: 0,
+                appMilliseconds: 0,
+                memoryMegabytes: nil
+            )
+        }
+        return parsedResult
     }
 
     private func writeCSV(_ results: [Result]) throws {
@@ -88,34 +174,118 @@ final class BenchmarkAppUITests: XCTestCase {
     }
 
     private func benchmarkIterations() -> Int {
-        let configurationURL = repositoryRoot()
-            .appendingPathComponent("Benchmarks")
-            .appendingPathComponent("results")
-            .appendingPathComponent(".benchmark-iterations")
+        configuredPositiveInt(environmentName: "LISTKIT_BENCHMARK_ITERATIONS", defaultValue: 3)
+    }
 
+    private func configuredValues(environmentName: String, defaults: [String]) -> [String] {
         guard
-            let value = try? String(contentsOf: configurationURL, encoding: .utf8)
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-            let iterations = Int(value),
-            iterations > 0
+            let value = ProcessInfo.processInfo.environment[environmentName],
+            value.isEmpty == false
         else {
-            return 3
+            return defaults
         }
+        return value.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+    }
 
-        return iterations
+    private func scrollUpCount() -> Int {
+        configuredPositiveInt(environmentName: "LISTKIT_BENCHMARK_SCROLL_UPS", defaultValue: 4)
+    }
+
+    private func scrollDownCount() -> Int {
+        configuredPositiveInt(environmentName: "LISTKIT_BENCHMARK_SCROLL_DOWNS", defaultValue: 2)
+    }
+
+    private func configuredPositiveInt(environmentName: String, defaultValue: Int) -> Int {
+        guard
+            let value = ProcessInfo.processInfo.environment[environmentName],
+            let count = Int(value),
+            count >= 0
+        else {
+            return defaultValue
+        }
+        return count
     }
 
     private func csvString(for results: [Result]) -> String {
-        let header = "implementation,scenario,item_count,median_ms"
+        let header = "implementation,scenario,item_count,median_ms,median_app_ms,median_xctest_ms,median_memory_mb"
         let rows = results.map {
             [
                 $0.implementation,
                 $0.scenario,
                 String($0.itemCount),
-                String(format: "%.3f", $0.medianMilliseconds),
+                String(format: "%.3f", $0.medianAppMilliseconds),
+                String(format: "%.3f", $0.medianAppMilliseconds),
+                String(format: "%.3f", $0.medianXCTestMilliseconds),
+                $0.medianMemoryMegabytes.map { String(format: "%.3f", $0) } ?? "",
             ].joined(separator: ",")
         }
         return ([header] + rows).joined(separator: "\n") + "\n"
+    }
+
+    private func parseResult(_ label: String) -> ParsedResult? {
+        let fields = label.split(separator: " ").reduce(into: [String: String]()) { result, field in
+            let parts = field.split(separator: "=", maxSplits: 1)
+            guard parts.count == 2 else { return }
+            result[String(parts[0])] = String(parts[1])
+        }
+
+        guard
+            label.contains("BENCH_RESULT"),
+            let run = fields["run"].flatMap(Int.init),
+            let implementation = fields["implementation"],
+            let scenario = fields["scenario"],
+            let items = fields["items"].flatMap(Int.init),
+            let appMilliseconds = fields["app_ms"].flatMap(Double.init)
+        else {
+            return nil
+        }
+
+        return ParsedResult(
+            runID: run,
+            implementation: implementation,
+            scenario: scenario,
+            itemCount: items,
+            appMilliseconds: appMilliseconds,
+            memoryMegabytes: fields["memory_mb"].flatMap(Double.init)
+        )
+    }
+
+    private func lastItemCount(app: XCUIApplication, fallback: Int) -> Int {
+        parseResult(app.staticTexts["benchmark-machine-result"].label)?.itemCount ?? fallback
+    }
+
+    private func implementationID(for title: String) -> String {
+        switch title {
+        case "ListKit Diffable":
+            "listKitDiffable"
+        case "ListKit DifferenceKit":
+            "listKitDifferenceKit"
+        case "ListKit Reload":
+            "listKitReloadData"
+        case "SwiftUI List":
+            "swiftUIList"
+        case "LazyVStack":
+            "lazyVStack"
+        case "UIKit Collection":
+            "uiCollectionView"
+        default:
+            title
+        }
+    }
+
+    private func scenarioID(for title: String) -> String {
+        switch title {
+        case "Load":
+            "initialLoad"
+        case "Append":
+            "append"
+        case "Shuffle":
+            "shuffle"
+        case "Replace":
+            "replace"
+        default:
+            title
+        }
     }
 
     private func median(_ values: [Double]) -> Double {

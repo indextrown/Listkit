@@ -42,6 +42,22 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         XCTAssertEqual(adapter.registeredFooterKeys.count, 1)
     }
 
+    func testIdenticalModelApplyDoesNotReloadDataAgain() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let model = makeModel()
+        var reloadCount = 0
+
+        adapter.reloadDataHandler = {
+            reloadCount += 1
+        }
+
+        adapter.apply(model)
+        adapter.apply(model)
+
+        XCTAssertEqual(reloadCount, 1)
+    }
+
     func testQueuedUpdateKeepsLastUpdateWhileApplyIsRunning() {
         let collectionView = makeCollectionView()
         let adapter = LKCollectionViewAdapter(collectionView: collectionView)

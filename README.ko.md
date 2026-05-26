@@ -95,7 +95,7 @@ swift test
 UIKit 동작은 iOS 시뮬레이터 테스트로 확인합니다.
 
 ```sh
-xcodebuild test -scheme ListKit -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.4'
+xcodebuild test -scheme ListKit -destination 'platform=iOS Simulator,name=iPhone 15 Pro Max,OS=26.0'
 ```
 
 샘플 앱 빌드는 다음 명령으로 확인할 수 있습니다.

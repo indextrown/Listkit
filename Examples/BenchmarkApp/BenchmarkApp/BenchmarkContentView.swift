@@ -1,13 +1,16 @@
 import SwiftUI
+import UIKit
+import Darwin
 import ListKit
 
 struct BenchmarkContentView: View {
-    @State private var selectedImplementation = BenchmarkImplementation.listKit
+    @State private var selectedImplementation = BenchmarkImplementation.listKitDiffable
     @State private var scenario = BenchmarkScenario.initialLoad
     @State private var itemCount = 1_000
     @State private var rows = BenchmarkRowModel.makeRows(count: 1_000)
     @State private var lastResult: BenchmarkRunResult?
     @State private var runID = 0
+    @State private var scrollMemorySampler = BenchmarkMemorySampler()
 
     var body: some View {
         NavigationStack {
@@ -18,7 +21,9 @@ struct BenchmarkContentView: View {
                     itemCount: $itemCount,
                     lastResult: lastResult,
                     runID: runID,
-                    run: runScenario
+                    run: runScenario,
+                    resetScrollMemory: resetScrollMemory,
+                    sampleScrollMemory: sampleScrollMemory
                 )
 
                 Divider()
@@ -32,12 +37,18 @@ struct BenchmarkContentView: View {
     @ViewBuilder
     private var benchmarkView: some View {
         switch selectedImplementation {
-        case .listKit:
-            ListKitBenchmarkView(rows: rows)
+        case .listKitDiffable:
+            ListKitBenchmarkView(rows: rows, updateEngine: .diffableDataSource)
+        case .listKitDifferenceKit:
+            ListKitBenchmarkView(rows: rows, updateEngine: .differenceKit)
+        case .listKitReloadData:
+            ListKitBenchmarkView(rows: rows, updateEngine: .reloadData)
         case .swiftUIList:
             SwiftUIListBenchmarkView(rows: rows)
         case .lazyVStack:
             LazyVStackBenchmarkView(rows: rows)
+        case .uiCollectionView:
+            UIKitCollectionBenchmarkView(rows: rows)
         }
     }
 
@@ -52,9 +63,27 @@ struct BenchmarkContentView: View {
                 implementation: selectedImplementation,
                 scenario: scenario,
                 itemCount: rows.count,
-                elapsedMilliseconds: elapsed
+                elapsedMilliseconds: elapsed,
+                memoryMegabytes: BenchmarkMemory.currentFootprintMegabytes
             )
         }
+    }
+
+    private func sampleScrollMemory() {
+        scrollMemorySampler.sample()
+        runID += 1
+        lastResult = BenchmarkRunResult(
+            implementation: selectedImplementation,
+            scenario: .scrollMemory,
+            itemCount: rows.count,
+            elapsedMilliseconds: 0,
+            memoryMegabytes: scrollMemorySampler.peakMegabytes ?? BenchmarkMemory.currentFootprintMegabytes
+        )
+    }
+
+    private func resetScrollMemory() {
+        scrollMemorySampler = BenchmarkMemorySampler()
+        sampleScrollMemory()
     }
 }
 
@@ -66,29 +95,55 @@ private struct BenchmarkControlPanel: View {
     let lastResult: BenchmarkRunResult?
     let runID: Int
     let run: () -> Void
+    let resetScrollMemory: () -> Void
+    let sampleScrollMemory: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Picker("Implementation", selection: $selectedImplementation) {
-                ForEach(BenchmarkImplementation.allCases) { implementation in
-                    Text(implementation.title).tag(implementation)
-                }
-            }
-            .pickerStyle(.segmented)
+            Text("Implementation")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
-            Picker("Scenario", selection: $scenario) {
-                ForEach(BenchmarkScenario.allCases) { scenario in
-                    Text(scenario.title).tag(scenario)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], alignment: .leading, spacing: 8) {
+                ForEach(BenchmarkImplementation.allCases) { implementation in
+                    Button(implementation.title) {
+                        selectedImplementation = implementation
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("implementation-\(implementation.rawValue)")
                 }
             }
-            .pickerStyle(.segmented)
+
+            Text("Scenario")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], alignment: .leading, spacing: 8) {
+                ForEach(BenchmarkScenario.allCases) { scenario in
+                    Button(scenario.title) {
+                        self.scenario = scenario
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("scenario-\(scenario.rawValue)")
+                }
+            }
 
             Stepper("Rows: \(itemCount)", value: $itemCount, in: 100...10_000, step: 100)
 
-            HStack {
-                Button("Run Scenario", action: run)
-                    .buttonStyle(.borderedProminent)
-                    .accessibilityIdentifier("run-scenario-button")
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Button("Run Scenario", action: run)
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("run-scenario-button")
+
+                    Button("Sample Scroll Memory", action: sampleScrollMemory)
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("sample-scroll-memory-button")
+
+                    Button("Reset Scroll Memory", action: resetScrollMemory)
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("reset-scroll-memory-button")
+                }
 
                 if let lastResult {
                     Text("\(lastResult.summary), run \(runID)")
@@ -97,6 +152,12 @@ private struct BenchmarkControlPanel: View {
                         .lineLimit(2)
                         .accessibilityIdentifier("benchmark-result")
                 }
+
+                Text(lastResult?.machineSummary(runID: runID) ?? "BENCH_RESULT run=0 pending=true")
+                    .font(.caption2)
+                    .frame(width: 1, height: 1)
+                    .opacity(0.01)
+                    .accessibilityIdentifier("benchmark-machine-result")
             }
         }
         .padding()
@@ -106,13 +167,14 @@ private struct BenchmarkControlPanel: View {
 
 struct ListKitBenchmarkView: View {
     let rows: [BenchmarkRowModel]
+    let updateEngine: LKUpdateEngine
 
     var body: some View {
         LKList(rows, id: \.id) { row in
             BenchmarkRow(row: row)
         }
         .listKitStyle(.plain)
-        .updateEngine(.diffableDataSource)
+        .updateEngine(updateEngine)
     }
 }
 
@@ -139,6 +201,123 @@ struct LazyVStackBenchmarkView: View {
                 }
             }
         }
+    }
+}
+
+struct UIKitCollectionBenchmarkView: UIViewRepresentable {
+    let rows: [BenchmarkRowModel]
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(rows: rows)
+    }
+
+    func makeUIView(context: Context) -> UICollectionView {
+        let configuration = UICollectionLayoutListConfiguration(appearance: .plain)
+        let layout = UICollectionViewCompositionalLayout.list(using: configuration)
+        let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView.dataSource = context.coordinator
+        collectionView.register(
+            UIKitBenchmarkCollectionViewCell.self,
+            forCellWithReuseIdentifier: UIKitBenchmarkCollectionViewCell.reuseIdentifier
+        )
+        return collectionView
+    }
+
+    func updateUIView(_ collectionView: UICollectionView, context: Context) {
+        context.coordinator.rows = rows
+        collectionView.reloadData()
+    }
+
+    final class Coordinator: NSObject, UICollectionViewDataSource {
+        var rows: [BenchmarkRowModel]
+
+        init(rows: [BenchmarkRowModel]) {
+            self.rows = rows
+        }
+
+        func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+            rows.count
+        }
+
+        func collectionView(
+            _ collectionView: UICollectionView,
+            cellForItemAt indexPath: IndexPath
+        ) -> UICollectionViewCell {
+            let cell = collectionView.dequeueReusableCell(
+                withReuseIdentifier: UIKitBenchmarkCollectionViewCell.reuseIdentifier,
+                for: indexPath
+            )
+            if let benchmarkCell = cell as? UIKitBenchmarkCollectionViewCell {
+                benchmarkCell.configure(row: rows[indexPath.item])
+            }
+            return cell
+        }
+    }
+}
+
+final class UIKitBenchmarkCollectionViewCell: UICollectionViewCell {
+    static let reuseIdentifier = "UIKitBenchmarkCollectionViewCell"
+
+    private let swatchView = UIView()
+    private let titleLabel = UILabel()
+    private let subtitleLabel = UILabel()
+    private let badgeLabel = UILabel()
+    private let stackView = UIStackView()
+    private let textStackView = UIStackView()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setUpViews()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setUpViews()
+    }
+
+    func configure(row: BenchmarkRowModel) {
+        swatchView.backgroundColor = UIColor(row.color)
+        titleLabel.text = row.title
+        subtitleLabel.text = row.subtitle
+        badgeLabel.text = row.badge
+    }
+
+    private func setUpViews() {
+        swatchView.layer.cornerRadius = 6
+        swatchView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            swatchView.widthAnchor.constraint(equalToConstant: 44),
+            swatchView.heightAnchor.constraint(equalToConstant: 44),
+        ])
+
+        titleLabel.font = .preferredFont(forTextStyle: .headline)
+        subtitleLabel.font = .preferredFont(forTextStyle: .subheadline)
+        subtitleLabel.textColor = .secondaryLabel
+        badgeLabel.font = .preferredFont(forTextStyle: .caption1)
+        badgeLabel.textColor = .secondaryLabel
+
+        textStackView.axis = .vertical
+        textStackView.spacing = 4
+        textStackView.addArrangedSubview(titleLabel)
+        textStackView.addArrangedSubview(subtitleLabel)
+
+        stackView.axis = .horizontal
+        stackView.alignment = .center
+        stackView.spacing = 12
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.addArrangedSubview(swatchView)
+        stackView.addArrangedSubview(textStackView)
+        stackView.addArrangedSubview(badgeLabel)
+        textStackView.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        badgeLabel.setContentHuggingPriority(.required, for: .horizontal)
+
+        contentView.addSubview(stackView)
+        NSLayoutConstraint.activate([
+            stackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            stackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            stackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
+            stackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10),
+        ])
     }
 }
 
@@ -171,20 +350,29 @@ private struct BenchmarkRow: View {
 }
 
 enum BenchmarkImplementation: String, CaseIterable, Identifiable {
-    case listKit
+    case listKitDiffable
+    case listKitDifferenceKit
+    case listKitReloadData
     case swiftUIList
     case lazyVStack
+    case uiCollectionView
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .listKit:
-            "ListKit"
+        case .listKitDiffable:
+            "ListKit Diffable"
+        case .listKitDifferenceKit:
+            "ListKit DifferenceKit"
+        case .listKitReloadData:
+            "ListKit Reload"
         case .swiftUIList:
             "SwiftUI List"
         case .lazyVStack:
             "LazyVStack"
+        case .uiCollectionView:
+            "UIKit Collection"
         }
     }
 }
@@ -194,6 +382,14 @@ enum BenchmarkScenario: String, CaseIterable, Identifiable {
     case append
     case shuffle
     case replace
+    case scrollMemory
+
+    static let allCases: [BenchmarkScenario] = [
+        .initialLoad,
+        .append,
+        .shuffle,
+        .replace,
+    ]
 
     var id: String { rawValue }
 
@@ -207,6 +403,8 @@ enum BenchmarkScenario: String, CaseIterable, Identifiable {
             "Shuffle"
         case .replace:
             "Replace"
+        case .scrollMemory:
+            "Scroll Memory"
         }
     }
 
@@ -220,6 +418,8 @@ enum BenchmarkScenario: String, CaseIterable, Identifiable {
             "Shuffle"
         case .replace:
             "Replace"
+        case .scrollMemory:
+            "Scroll memory peak"
         }
     }
 
@@ -234,6 +434,8 @@ enum BenchmarkScenario: String, CaseIterable, Identifiable {
             rows.shuffle()
         case .replace:
             rows = BenchmarkRowModel.makeRows(count: rows.count)
+        case .scrollMemory:
+            break
         }
     }
 }
@@ -243,9 +445,52 @@ struct BenchmarkRunResult {
     let scenario: BenchmarkScenario
     let itemCount: Int
     let elapsedMilliseconds: Double
+    let memoryMegabytes: Double?
 
     var summary: String {
-        "\(implementation.title) \(scenario.title): \(String(format: "%.2f", elapsedMilliseconds)) ms, \(itemCount) rows"
+        let memory = memoryMegabytes.map { ", \(String(format: "%.1f", $0)) MB" } ?? ""
+        return "\(implementation.title) \(scenario.title): \(String(format: "%.2f", elapsedMilliseconds)) ms, \(itemCount) rows\(memory)"
+    }
+
+    func machineSummary(runID: Int) -> String {
+        let memory = memoryMegabytes.map { String(format: "%.3f", $0) } ?? ""
+        return [
+            "BENCH_RESULT",
+            "run=\(runID)",
+            "implementation=\(implementation.rawValue)",
+            "scenario=\(scenario.rawValue)",
+            "items=\(itemCount)",
+            "app_ms=\(String(format: "%.3f", elapsedMilliseconds))",
+            "memory_mb=\(memory)",
+        ].joined(separator: " ")
+    }
+}
+
+struct BenchmarkMemorySampler {
+    private(set) var peakMegabytes: Double?
+
+    mutating func sample() {
+        guard let current = BenchmarkMemory.currentFootprintMegabytes else {
+            return
+        }
+        peakMegabytes = max(peakMegabytes ?? current, current)
+    }
+}
+
+enum BenchmarkMemory {
+    static var currentFootprintMegabytes: Double? {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size) / 4
+        let result = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+            }
+        }
+
+        guard result == KERN_SUCCESS else {
+            return nil
+        }
+        return Double(info.phys_footprint) / 1_048_576
     }
 }
 

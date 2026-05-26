@@ -110,7 +110,7 @@ swift test
 For UIKit behavior, run the iOS simulator test suite:
 
 ```sh
-xcodebuild test -scheme ListKit -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.4'
+xcodebuild test -scheme ListKit -destination 'platform=iOS Simulator,name=iPhone 15 Pro Max,OS=26.0'
 ```
 
 ## Release Status

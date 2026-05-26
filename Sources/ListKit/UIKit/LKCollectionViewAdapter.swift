@@ -115,6 +115,12 @@ final class LKCollectionViewAdapter: NSObject {
         configureRefreshControl(on: collectionView)
         emitApplyWarnings(for: model)
 
+        if model == currentModel {
+            synchronizeSelectionAfterApply(model: currentModel)
+            prunePrefetchCache(model: currentModel)
+            return
+        }
+
         guard isUpdating == false else {
             queuedUpdate = model
             return
