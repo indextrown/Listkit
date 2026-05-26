@@ -27,7 +27,12 @@ private let lkEmptySupplementaryReuseIdentifier = "ListKit.EmptySupplementaryVie
 @MainActor
 final class LKCollectionViewAdapter: NSObject {
     private weak var collectionView: UICollectionView?
-    private(set) var currentModel: LKListModel
+    private(set) var currentModel: LKListModel {
+        didSet {
+            currentModelIndex = nil
+        }
+    }
+    private var currentModelIndex: LKListModelIndex?
     private var listEvents: LKListEvents
     private var selectionConfiguration: LKSelectionConfiguration
     private var scrollConfiguration: LKScrollConfiguration
@@ -70,6 +75,7 @@ final class LKCollectionViewAdapter: NSObject {
     ) {
         self.collectionView = collectionView
         self.currentModel = model
+        self.currentModelIndex = nil
         self.listEvents = listEvents
         self.selectionConfiguration = selectionConfiguration
         self.scrollConfiguration = scrollConfiguration
@@ -121,8 +127,8 @@ final class LKCollectionViewAdapter: NSObject {
         emitApplyWarnings(for: model)
 
         if model == currentModel {
-            synchronizeSelectionAfterApply(model: currentModel)
-            prunePrefetchCache(model: currentModel)
+            synchronizeSelectionAfterApply()
+            prunePrefetchCache()
             return
         }
 
@@ -156,8 +162,8 @@ final class LKCollectionViewAdapter: NSObject {
                     }
                 }
             )
-            synchronizeSelectionAfterApply(model: currentModel)
-            prunePrefetchCache(model: currentModel)
+            synchronizeSelectionAfterApply()
+            prunePrefetchCache()
             finishApply()
         }
     }
@@ -211,6 +217,15 @@ final class LKCollectionViewAdapter: NSObject {
         let previousModel = currentModel
         let selectedItemIDs = selectedItemIDs(in: collectionView, model: previousModel)
 
+        if previousModel.sections.isEmpty {
+            applyDifferenceKitReloadData(
+                model,
+                selectedItemIDs: selectedItemIDs,
+                didFallback: false
+            )
+            return
+        }
+
         if let appendOnlyUpdate = appendOnlyUpdate(from: previousModel, to: model) {
             applyDifferenceKitAppendOnly(
                 model,
@@ -221,7 +236,11 @@ final class LKCollectionViewAdapter: NSObject {
         }
 
         if shouldReloadForLargeReorder(from: previousModel, to: model) {
-            applyDifferenceKitReloadData(model, selectedItemIDs: selectedItemIDs)
+            applyDifferenceKitReloadData(
+                model,
+                selectedItemIDs: selectedItemIDs,
+                didFallback: true
+            )
             return
         }
 
@@ -239,9 +258,9 @@ final class LKCollectionViewAdapter: NSObject {
         guard let collectionView, stagedChangeset.isEmpty == false else {
             currentModel = model
             collectionView?.reloadData()
-            restoreSelection(selectedItemIDs, in: collectionView, model: model)
-            synchronizeSelectionAfterApply(model: model)
-            prunePrefetchCache(model: model)
+            restoreSelection(selectedItemIDs, in: collectionView)
+            synchronizeSelectionAfterApply()
+            prunePrefetchCache()
             restoreFocus(in: collectionView)
             differenceKitApplyCompletionHandler?()
             finishApply()
@@ -254,7 +273,7 @@ final class LKCollectionViewAdapter: NSObject {
             return changeset.changeCount > max(visibleCapacity * 8, 500)
         }
 
-        collectionView.reload(
+        collectionView.lkReload(
             using: stagedChangeset,
             interrupt: { [weak self] changeset in
                 let shouldInterrupt = interrupt(changeset)
@@ -265,7 +284,8 @@ final class LKCollectionViewAdapter: NSObject {
             },
             setData: { [weak self] data in
                 self?.currentModel = LKListModel(differenceKitSections: data)
-            }
+            },
+            reconfigureUpdatedItems: true
         )
 
         if didFallbackFromDifferenceKit {
@@ -277,9 +297,9 @@ final class LKCollectionViewAdapter: NSObject {
                 )
             )
         }
-        restoreSelection(selectedItemIDs, in: collectionView, model: currentModel)
-        synchronizeSelectionAfterApply(model: currentModel)
-        prunePrefetchCache(model: currentModel)
+        restoreSelection(selectedItemIDs, in: collectionView)
+        synchronizeSelectionAfterApply()
+        prunePrefetchCache()
         restoreFocus(in: collectionView)
         differenceKitApplyCompletionHandler?()
         finishApply()
@@ -292,14 +312,14 @@ final class LKCollectionViewAdapter: NSObject {
     ) {
         lastDifferenceKitChangesetCount = appendOnlyUpdate.insertedIndexPaths.count
         didFallbackFromDifferenceKit = false
-        registerReuseIdentifiersIfNeeded(from: model)
+        registerReuseIdentifiersForInsertedItems(from: model, appendOnlyUpdate: appendOnlyUpdate)
 
         guard let collectionView, appendOnlyUpdate.insertedIndexPaths.isEmpty == false else {
             currentModel = model
             collectionView?.reloadData()
-            restoreSelection(selectedItemIDs, in: collectionView, model: model)
-            synchronizeSelectionAfterApply(model: model)
-            prunePrefetchCache(model: model)
+            restoreSelection(selectedItemIDs, in: collectionView)
+            synchronizeSelectionAfterApply()
+            prunePrefetchCache()
             restoreFocus(in: collectionView)
             differenceKitApplyCompletionHandler?()
             finishApply()
@@ -311,9 +331,9 @@ final class LKCollectionViewAdapter: NSObject {
             collectionView.insertItems(at: appendOnlyUpdate.insertedIndexPaths)
         } completion: { [weak self] _ in
             guard let self else { return }
-            self.restoreSelection(selectedItemIDs, in: collectionView, model: model)
-            self.synchronizeSelectionAfterApply(model: model)
-            self.prunePrefetchCache(model: model)
+            self.restoreSelection(selectedItemIDs, in: collectionView)
+            self.synchronizeSelectionAfterApply()
+            self.prunePrefetchCache()
             self.restoreFocus(in: collectionView)
             self.differenceKitApplyCompletionHandler?()
             self.finishApply()
@@ -322,16 +342,17 @@ final class LKCollectionViewAdapter: NSObject {
 
     private func applyDifferenceKitReloadData(
         _ model: LKListModel,
-        selectedItemIDs: [AnyHashable]
+        selectedItemIDs: [AnyHashable],
+        didFallback: Bool
     ) {
         lastDifferenceKitChangesetCount = 0
-        didFallbackFromDifferenceKit = true
+        didFallbackFromDifferenceKit = didFallback
         registerReuseIdentifiersIfNeeded(from: model)
         currentModel = model
         collectionView?.reloadData()
-        restoreSelection(selectedItemIDs, in: collectionView, model: model)
-        synchronizeSelectionAfterApply(model: model)
-        prunePrefetchCache(model: model)
+        restoreSelection(selectedItemIDs, in: collectionView)
+        synchronizeSelectionAfterApply()
+        prunePrefetchCache()
         restoreFocus(in: collectionView)
         differenceKitApplyCompletionHandler?()
         finishApply()
@@ -347,81 +368,96 @@ final class LKCollectionViewAdapter: NSObject {
     }
 
     func registerReuseIdentifiersIfNeeded(from model: LKListModel) {
-        for section in model.sections {
-            for item in section.items {
-                registerCellIfNeeded(item)
-            }
-
-            if let header = section.header {
-                registerHeaderIfNeeded(header)
-            }
-
-            if let footer = section.footer {
-                registerFooterIfNeeded(footer)
-            }
-        }
-    }
-
-    private func registerCellIfNeeded(_ item: LKItemModel) {
         guard let collectionView else {
             return
         }
 
-        let key = LKCellRegistrationKey(
-            reuseIdentifier: item.reuseIdentifier,
-            hostingStrategy: item.hostingStrategy
-        )
+        var cellKeys = Set<LKCellRegistrationKey>()
+        var headerKeys = Set<LKSupplementaryRegistrationKey>()
+        var footerKeys = Set<LKSupplementaryRegistrationKey>()
 
-        guard registeredCellKeys.insert(key).inserted else {
-            return
+        for section in model.sections {
+            for item in section.items {
+                cellKeys.insert(
+                    LKCellRegistrationKey(
+                        reuseIdentifier: item.reuseIdentifier,
+                        hostingStrategy: item.hostingStrategy
+                    )
+                )
+            }
+
+            if let header = section.header {
+                headerKeys.insert(
+                    LKSupplementaryRegistrationKey(
+                        kind: UICollectionView.elementKindSectionHeader,
+                        reuseIdentifier: header.reuseIdentifier,
+                        hostingStrategy: header.hostingStrategy
+                    )
+                )
+            }
+
+            if let footer = section.footer {
+                footerKeys.insert(
+                    LKSupplementaryRegistrationKey(
+                        kind: UICollectionView.elementKindSectionFooter,
+                        reuseIdentifier: footer.reuseIdentifier,
+                        hostingStrategy: footer.hostingStrategy
+                    )
+                )
+            }
         }
 
-        collectionView.register(
-            LKHostingCollectionViewCell.self,
-            forCellWithReuseIdentifier: key.reuseIdentifier
-        )
+        for key in cellKeys where registeredCellKeys.insert(key).inserted {
+            collectionView.register(
+                LKHostingCollectionViewCell.self,
+                forCellWithReuseIdentifier: key.reuseIdentifier
+            )
+        }
+
+        for key in headerKeys where registeredHeaderKeys.insert(key).inserted {
+            collectionView.register(
+                LKHostingSupplementaryView.self,
+                forSupplementaryViewOfKind: key.kind,
+                withReuseIdentifier: key.reuseIdentifier
+            )
+        }
+
+        for key in footerKeys where registeredFooterKeys.insert(key).inserted {
+            collectionView.register(
+                LKHostingSupplementaryView.self,
+                forSupplementaryViewOfKind: key.kind,
+                withReuseIdentifier: key.reuseIdentifier
+            )
+        }
     }
 
-    private func registerHeaderIfNeeded(_ header: LKSupplementaryModel) {
-        registerSupplementaryIfNeeded(
-            header,
-            kind: UICollectionView.elementKindSectionHeader,
-            keyStore: &registeredHeaderKeys
-        )
-    }
-
-    private func registerFooterIfNeeded(_ footer: LKSupplementaryModel) {
-        registerSupplementaryIfNeeded(
-            footer,
-            kind: UICollectionView.elementKindSectionFooter,
-            keyStore: &registeredFooterKeys
-        )
-    }
-
-    private func registerSupplementaryIfNeeded(
-        _ supplementary: LKSupplementaryModel,
-        kind: String,
-        keyStore: inout Set<LKSupplementaryRegistrationKey>
+    private func registerReuseIdentifiersForInsertedItems(
+        from model: LKListModel,
+        appendOnlyUpdate: LKAppendOnlyUpdate
     ) {
         guard let collectionView else {
             return
         }
 
-        let key = LKSupplementaryRegistrationKey(
-            kind: kind,
-            reuseIdentifier: supplementary.reuseIdentifier,
-            hostingStrategy: supplementary.hostingStrategy
-        )
-
-        guard keyStore.insert(key).inserted else {
-            return
+        var cellKeys = Set<LKCellRegistrationKey>()
+        for indexPath in appendOnlyUpdate.insertedIndexPaths {
+            guard let item = model.item(at: indexPath) else {
+                continue
+            }
+            cellKeys.insert(
+                LKCellRegistrationKey(
+                    reuseIdentifier: item.reuseIdentifier,
+                    hostingStrategy: item.hostingStrategy
+                )
+            )
         }
 
-        collectionView.register(
-            LKHostingSupplementaryView.self,
-            forSupplementaryViewOfKind: kind,
-            withReuseIdentifier: key.reuseIdentifier
-        )
+        for key in cellKeys where registeredCellKeys.insert(key).inserted {
+            collectionView.register(
+                LKHostingCollectionViewCell.self,
+                forCellWithReuseIdentifier: key.reuseIdentifier
+            )
+        }
     }
 
     private func configureDiffableDataSource(on collectionView: UICollectionView) {
@@ -440,6 +476,11 @@ final class LKCollectionViewAdapter: NSObject {
         model.validateForApply()
         let previousModel = currentModel
         let selectedItemIDs = selectedItemIDs(in: collectionView, model: previousModel)
+
+        if previousModel.sections.isEmpty {
+            applyDiffableReloadData(model, selectedItemIDs: selectedItemIDs)
+            return
+        }
 
         if let appendOnlyUpdate = appendOnlyUpdate(from: previousModel, to: model),
            applyDiffableAppendOnly(
@@ -463,15 +504,15 @@ final class LKCollectionViewAdapter: NSObject {
         var snapshot = makeDiffableSnapshot(for: model)
         lastReconfiguredItemIdentifiers = changedItems
         if changedItems.isEmpty == false {
-            snapshot.reloadItems(changedItems)
+            snapshot.reconfigureItems(changedItems)
         }
 
         let shouldAnimate = collectionView?.window != nil
         diffableDataSource?.apply(snapshot, animatingDifferences: shouldAnimate) { [weak self] in
             guard let self else { return }
-            self.restoreSelection(selectedItemIDs, in: self.collectionView, model: model)
-            self.synchronizeSelectionAfterApply(model: model)
-            self.prunePrefetchCache(model: model)
+            self.restoreSelection(selectedItemIDs, in: self.collectionView)
+            self.synchronizeSelectionAfterApply()
+            self.prunePrefetchCache()
             self.restoreFocus(in: self.collectionView)
             self.diffableApplyCompletionHandler?()
             self.finishApply()
@@ -493,9 +534,9 @@ final class LKCollectionViewAdapter: NSObject {
         let snapshot = makeDiffableSnapshot(for: model)
         diffableDataSource.applySnapshotUsingReloadData(snapshot) { [weak self] in
             guard let self else { return }
-            self.restoreSelection(selectedItemIDs, in: self.collectionView, model: model)
-            self.synchronizeSelectionAfterApply(model: model)
-            self.prunePrefetchCache(model: model)
+            self.restoreSelection(selectedItemIDs, in: self.collectionView)
+            self.synchronizeSelectionAfterApply()
+            self.prunePrefetchCache()
             self.restoreFocus(in: self.collectionView)
             self.diffableApplyCompletionHandler?()
             self.finishApply()
@@ -554,7 +595,7 @@ final class LKCollectionViewAdapter: NSObject {
             }
         }
 
-        registerReuseIdentifiersIfNeeded(from: model)
+        registerReuseIdentifiersForInsertedItems(from: model, appendOnlyUpdate: appendOnlyUpdate)
         currentModel = model
         lastReconfiguredItemIdentifiers = []
 
@@ -565,9 +606,9 @@ final class LKCollectionViewAdapter: NSObject {
         let shouldAnimate = shouldAnimateAppend(insertedItemCount: appendOnlyUpdate.insertedIndexPaths.count)
         diffableDataSource.apply(snapshot, animatingDifferences: shouldAnimate) { [weak self] in
             guard let self else { return }
-            self.restoreSelection(selectedItemIDs, in: self.collectionView, model: model)
-            self.synchronizeSelectionAfterApply(model: model)
-            self.prunePrefetchCache(model: model)
+            self.restoreSelection(selectedItemIDs, in: self.collectionView)
+            self.synchronizeSelectionAfterApply()
+            self.prunePrefetchCache()
             self.restoreFocus(in: self.collectionView)
             self.diffableApplyCompletionHandler?()
             self.finishApply()
@@ -773,15 +814,15 @@ final class LKCollectionViewAdapter: NSObject {
 
     private func restoreSelection(
         _ selectedItemIDs: [AnyHashable],
-        in collectionView: UICollectionView?,
-        model: LKListModel
+        in collectionView: UICollectionView?
     ) {
         guard let collectionView, selectedItemIDs.isEmpty == false else {
             return
         }
 
+        let modelIndex = modelIndexForCurrentModel()
         for itemID in selectedItemIDs {
-            guard let indexPath = indexPath(forItemID: itemID, in: model) else {
+            guard let indexPath = modelIndex.indexPath(forItemID: itemID) else {
                 continue
             }
             collectionView.selectItem(at: indexPath, animated: false, scrollPosition: [])
@@ -806,7 +847,7 @@ final class LKCollectionViewAdapter: NSObject {
         }
     }
 
-    private func synchronizeSelectionAfterApply(model: LKListModel) {
+    private func synchronizeSelectionAfterApply() {
         guard let collectionView else {
             return
         }
@@ -823,8 +864,8 @@ final class LKCollectionViewAdapter: NSObject {
             return
         }
 
-        let selectedIDs = normalizedSelectionIDs(selectionConfiguration.selectedIDs(), model: model)
-        applySelection(selectedIDs, to: collectionView, model: model)
+        let selectedIDs = normalizedSelectionIDs(selectionConfiguration.selectedIDs())
+        applySelection(selectedIDs, to: collectionView)
         selectionConfiguration.setSelectedIDs?(selectedIDs)
     }
 
@@ -833,7 +874,7 @@ final class LKCollectionViewAdapter: NSObject {
             return
         }
 
-        let currentIDs = normalizedSelectionIDs(selectionConfiguration.selectedIDs(), model: currentModel)
+        let currentIDs = normalizedSelectionIDs(selectionConfiguration.selectedIDs())
         let selectedIDs: [AnyHashable]
         switch selectionConfiguration.mode {
         case .none:
@@ -843,7 +884,7 @@ final class LKCollectionViewAdapter: NSObject {
         case .multiple:
             selectedIDs = currentIDs.contains(itemID) ? currentIDs : currentIDs + [itemID]
         }
-        selectionConfiguration.setSelectedIDs?(normalizedSelectionIDs(selectedIDs, model: currentModel))
+        selectionConfiguration.setSelectedIDs?(normalizedSelectionIDs(selectedIDs))
     }
 
     private func updateSelectionBindingAfterUserDeselect(itemID: AnyHashable) {
@@ -852,17 +893,17 @@ final class LKCollectionViewAdapter: NSObject {
         }
 
         let selectedIDs = normalizedSelectionIDs(
-            selectionConfiguration.selectedIDs().filter { $0 != itemID },
-            model: currentModel
+            selectionConfiguration.selectedIDs().filter { $0 != itemID }
         )
         selectionConfiguration.setSelectedIDs?(selectedIDs)
     }
 
-    private func normalizedSelectionIDs(_ ids: [AnyHashable], model: LKListModel) -> [AnyHashable] {
+    private func normalizedSelectionIDs(_ ids: [AnyHashable]) -> [AnyHashable] {
         var seen = Set<AnyHashable>()
         var normalized = [AnyHashable]()
+        let modelIndex = modelIndexForCurrentModel()
 
-        for id in ids where seen.insert(id).inserted && indexPath(forItemID: id, in: model) != nil {
+        for id in ids where seen.insert(id).inserted && modelIndex.itemIDs.contains(id) {
             normalized.append(id)
             if selectionConfiguration.mode == .single {
                 break
@@ -871,25 +912,22 @@ final class LKCollectionViewAdapter: NSObject {
         return normalized
     }
 
-    private func prunePrefetchCache(model: LKListModel) {
+    private func prunePrefetchCache() {
         guard prefetchedItemIDs.isEmpty == false else {
             return
         }
 
-        let liveItemIDs = Set(model.sections.flatMap { section in
-            section.items.map(\.id)
-        })
-        prefetchedItemIDs.formIntersection(liveItemIDs)
+        prefetchedItemIDs.formIntersection(modelIndexForCurrentModel().itemIDs)
     }
 
     private func applySelection(
         _ selectedIDs: [AnyHashable],
-        to collectionView: UICollectionView,
-        model: LKListModel
+        to collectionView: UICollectionView
     ) {
         clearSelection(in: collectionView)
+        let modelIndex = modelIndexForCurrentModel()
         for id in selectedIDs {
-            guard let indexPath = indexPath(forItemID: id, in: model) else {
+            guard let indexPath = modelIndex.indexPath(forItemID: id) else {
                 continue
             }
             collectionView.selectItem(at: indexPath, animated: false, scrollPosition: [])
@@ -1001,7 +1039,6 @@ final class LKCollectionViewAdapter: NSObject {
 
         guard listEvents.hasPrefetchHandlers else {
             collectionView.prefetchDataSource = nil
-            prefetchedItemIDs.removeAll(keepingCapacity: true)
             return
         }
 
@@ -1033,15 +1070,14 @@ final class LKCollectionViewAdapter: NSObject {
         focusRestorationHandler?()
     }
 
-    private func indexPath(forItemID itemID: AnyHashable, in model: LKListModel) -> IndexPath? {
-        for sectionIndex in model.sections.indices {
-            let section = model.sections[sectionIndex]
-            guard let itemIndex = section.items.firstIndex(where: { $0.id == itemID }) else {
-                continue
-            }
-            return IndexPath.lkIndexPath(item: itemIndex, section: sectionIndex)
+    private func modelIndexForCurrentModel() -> LKListModelIndex {
+        if let currentModelIndex {
+            return currentModelIndex
         }
-        return nil
+
+        let modelIndex = LKListModelIndex(model: currentModel)
+        currentModelIndex = modelIndex
+        return modelIndex
     }
 
     private func itemContext(at indexPath: IndexPath) -> LKAnyItemContext? {
@@ -1150,6 +1186,87 @@ private extension LKSectionModel {
         #else
         return coreMatches
         #endif
+    }
+}
+
+private extension UICollectionView {
+    func lkReload<C>(
+        using stagedChangeset: StagedChangeset<C>,
+        interrupt: ((Changeset<C>) -> Bool)? = nil,
+        setData: (C) -> Void,
+        reconfigureUpdatedItems: Bool
+    ) {
+        guard stagedChangeset.isEmpty == false else {
+            return
+        }
+
+        if window == nil, let data = stagedChangeset.last?.data {
+            setData(data)
+            reloadData()
+            return
+        }
+
+        for changeset in stagedChangeset {
+            if let interrupt, interrupt(changeset), let data = stagedChangeset.last?.data {
+                setData(data)
+                reloadData()
+                return
+            }
+
+            performBatchUpdates {
+                setData(changeset.data)
+
+                if changeset.sectionDeleted.isEmpty == false {
+                    deleteSections(IndexSet(changeset.sectionDeleted))
+                }
+
+                if changeset.sectionInserted.isEmpty == false {
+                    insertSections(IndexSet(changeset.sectionInserted))
+                }
+
+                if changeset.sectionUpdated.isEmpty == false {
+                    reloadSections(IndexSet(changeset.sectionUpdated))
+                }
+
+                for (source, target) in changeset.sectionMoved {
+                    moveSection(source, toSection: target)
+                }
+
+                if changeset.elementDeleted.isEmpty == false {
+                    deleteItems(
+                        at: changeset.elementDeleted.map {
+                            IndexPath.lkIndexPath(item: $0.element, section: $0.section)
+                        }
+                    )
+                }
+
+                if changeset.elementInserted.isEmpty == false {
+                    insertItems(
+                        at: changeset.elementInserted.map {
+                            IndexPath.lkIndexPath(item: $0.element, section: $0.section)
+                        }
+                    )
+                }
+
+                if changeset.elementUpdated.isEmpty == false {
+                    let indexPaths = changeset.elementUpdated.map {
+                        IndexPath.lkIndexPath(item: $0.element, section: $0.section)
+                    }
+                    if reconfigureUpdatedItems {
+                        reconfigureItems(at: indexPaths)
+                    } else {
+                        reloadItems(at: indexPaths)
+                    }
+                }
+
+                for (source, target) in changeset.elementMoved {
+                    moveItem(
+                        at: IndexPath.lkIndexPath(item: source.element, section: source.section),
+                        to: IndexPath.lkIndexPath(item: target.element, section: target.section)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -1449,7 +1566,7 @@ extension LKCollectionViewAdapter: UICollectionViewDelegate {
         guard let preferredFocusedItemID = listEvents.preferredFocusedItemID else {
             return nil
         }
-        return indexPath(forItemID: preferredFocusedItemID, in: currentModel)
+        return modelIndexForCurrentModel().indexPath(forItemID: preferredFocusedItemID)
     }
 
     func collectionView(_ collectionView: UICollectionView, shouldShowMenuForItemAt indexPath: IndexPath) -> Bool {
