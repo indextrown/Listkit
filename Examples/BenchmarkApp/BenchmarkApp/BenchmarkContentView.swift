@@ -153,11 +153,11 @@ private struct BenchmarkControlPanel: View {
                         .accessibilityIdentifier("benchmark-result")
                 }
 
-                Text(lastResult?.machineSummary(runID: runID) ?? "BENCH_RESULT run=0 pending=true")
-                    .font(.caption2)
+                Color.clear
                     .frame(width: 1, height: 1)
-                    .opacity(0.01)
+                    .accessibilityElement()
                     .accessibilityIdentifier("benchmark-machine-result")
+                    .accessibilityValue(lastResult?.machineSummary(runID: runID) ?? "BENCH_RESULT run=0 pending=true")
             }
         }
         .padding()
