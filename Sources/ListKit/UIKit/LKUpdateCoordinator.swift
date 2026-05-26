@@ -76,8 +76,9 @@ final class LKUpdateCoordinator {
             return
         }
 
+        let modelIndex = LKListModelIndex(model: model)
         for itemID in selectedItemIDs {
-            guard let indexPath = indexPath(forItemID: itemID, in: model) else {
+            guard let indexPath = modelIndex.indexPath(forItemID: itemID) else {
                 continue
             }
             collectionView.selectItem(at: indexPath, animated: false, scrollPosition: [])
@@ -93,15 +94,5 @@ final class LKUpdateCoordinator {
         focusRestorationHandler?()
     }
 
-    private func indexPath(forItemID itemID: AnyHashable, in model: LKListModel) -> IndexPath? {
-        for sectionIndex in model.sections.indices {
-            let section = model.sections[sectionIndex]
-            guard let itemIndex = section.items.firstIndex(where: { $0.id == itemID }) else {
-                continue
-            }
-            return IndexPath.lkIndexPath(item: itemIndex, section: sectionIndex)
-        }
-        return nil
-    }
 }
 #endif
