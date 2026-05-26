@@ -355,3 +355,74 @@ KarrotListKit의 `UICollectionView.reload(using:interrupt:setData:enablesReconfi
 
 - macOS SwiftPM 테스트에서는 UIKit 조건부 adapter 테스트가 실행되지 않을 수 있습니다.
 - 현재 수치는 simulator Debug/UI test 기반입니다. 최종 성능 판단은 device Release benchmark를 별도로 봐야 합니다.
+
+## Adapter 추가 성능 개선
+
+### 1. Content token 변경 감지
+
+`changedContentItemIdentifiers`는 이전에는 old model 전체를 `[LKItemIdentifier: LKItemModel]` dictionary로 만든 뒤 new model을 다시 순회했습니다.
+
+현재는 `LKListContentTokenIndex`가 `LKModelItemIdentity(sectionID, itemID)` 기준으로 item 존재 여부와 content token만 저장합니다. 먼저 old/new model에 content token이 있는지 가볍게 확인하고, token이 있을 때만 token index를 만듭니다.
+
+효과:
+
+- old item model 전체 dictionary 저장을 피합니다.
+- content token 비교에 필요한 값만 저장합니다.
+- content token이 없는 일반 update는 token dictionary 할당을 건너뜁니다.
+
+### 2. Append-only 판정
+
+append-only 판정은 정확성을 위해 여전히 기존 prefix가 같은지 확인해야 합니다. hash/fingerprint만 믿으면 충돌 시 잘못된 batch update가 발생할 수 있으므로 사용하지 않습니다.
+
+대신 현재 구현은 다음 비용을 줄입니다.
+
+- 전체 inserted index path capacity를 미리 예약합니다.
+- `prefix(...).elementsEqual(...)` 대신 명시적 index loop를 사용합니다.
+- 첫 item과 old prefix의 마지막 item을 먼저 확인해 append-only가 아닌 update를 빠르게 탈락시킵니다.
+
+append가 실제로 맞는 경우의 최악 시간복잡도는 정확성 때문에 `O(N)`입니다. append가 아닌 update에서는 boundary mismatch로 더 빨리 빠질 수 있습니다.
+
+### 3. Registration summary
+
+adapter는 cell/header/footer registration descriptor set을 `LKRegistrationSummary`로 만듭니다.
+
+```swift
+var cellDescriptors: Set<LKCellRegistrationDescriptor>
+var headerDescriptors: Set<LKSupplementaryRegistrationDescriptor>
+var footerDescriptors: Set<LKSupplementaryRegistrationDescriptor>
+```
+
+registration 정책은 summary 생성과 UIKit register 적용 단계로 분리됐습니다. append-only update는 기존처럼 inserted item만 등록하고, 일반 update는 summary를 통해 registration key 생성을 한 곳에서 처리합니다.
+
+### 4. Size storage key
+
+이전 size storage는 cell과 supplementary size를 `IndexPath` 중심으로 저장했습니다.
+
+현재는 identity와 content token을 포함한 key를 사용합니다.
+
+```swift
+struct LKItemSizeKey {
+    let sectionID: AnyHashable
+    let itemID: AnyHashable
+    let contentToken: AnyHashable?
+}
+
+struct LKSupplementarySizeKey {
+    let kind: String
+    let sectionID: AnyHashable
+    let supplementaryID: AnyHashable
+    let contentToken: AnyHashable?
+}
+```
+
+reorder 이후에도 같은 item의 size cache 의미가 유지되고, content token이 바뀌면 이전 size를 다른 content의 size로 오해하지 않습니다.
+
+### 5. Benchmark configuration
+
+`make benchmark`는 기존 Debug simulator 측정과 호환되도록 기본값을 유지합니다. 추가로 `CONFIGURATION` 인자를 받아 Release 측정을 실행할 수 있습니다.
+
+```sh
+make benchmark CONFIGURATION=Release
+```
+
+`Benchmarks/results/benchmark-config.json`에도 configuration을 기록합니다. simulator Debug/UI test 수치는 회귀 비교용이고, 최종 성능 판단은 device Release 측정으로 보는 것을 권장합니다.
