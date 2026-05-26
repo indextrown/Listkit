@@ -31,9 +31,10 @@ public struct LKSection {
             rows: rows(),
             header: LKSupplementaryModel(
                 id: AnyHashable(id),
-                kind: .header,
-                makeContent: { AnyView(header()) }
-            ),
+                kind: .header
+            ) {
+                header()
+            },
             footer: nil
         )
     }
@@ -49,14 +50,16 @@ public struct LKSection {
             rows: rows(),
             header: LKSupplementaryModel(
                 id: AnyHashable(id),
-                kind: .header,
-                makeContent: { AnyView(header()) }
-            ),
+                kind: .header
+            ) {
+                header()
+            },
             footer: LKSupplementaryModel(
                 id: AnyHashable(id),
-                kind: .footer,
-                makeContent: { AnyView(footer()) }
-            )
+                kind: .footer
+            ) {
+                footer()
+            }
         )
     }
 
