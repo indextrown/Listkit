@@ -18,15 +18,12 @@ final class LKHostingSupplementaryView: UICollectionReusableView {
         self.onSizeChange = onSizeChange
         hostedContentView?.removeFromSuperview()
 
-        guard let makeContent = supplementary.makeContent else {
+        guard let content = supplementary.content else {
             hostedContentView = nil
             return
         }
 
-        let contentView = UIHostingConfiguration {
-            makeContent()
-                .environment(\.lkCellState, state)
-        }.makeContentView()
+        let contentView = content.makeSupplementaryContentView(state: state)
 
         contentView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(contentView)
