@@ -14,6 +14,7 @@ The project goal is to keep SwiftUI-style list declaration while exposing the co
 - [Test](#test)
 - [Release Status](#release-status)
 - [How ListKit Differs From SwiftUI List](#how-listkit-differs-from-swiftui-list)
+- [SwiftUI Hosting Without AnyView](#swiftui-hosting-without-anyview)
 - [Delegate Hooks](#delegate-hooks)
 - [Identity And Equality](#identity-and-equality)
 - [Update Engines](#update-engines)
@@ -135,6 +136,53 @@ xcodebuild test -scheme ListKit -destination 'platform=iOS Simulator,name=iPhone
 | Escape hatch | Limited UIKit control | UIKit typed advanced hooks where needed |
 
 Use SwiftUI `List` when system behavior is enough. Use `ListKit` when the screen needs collection view delegate timing, custom update strategy, or collection layout control while keeping SwiftUI row views.
+
+## SwiftUI Hosting Without AnyView
+
+ListKit stores row, header, and footer content without wrapping user views in `AnyView`. Earlier prototypes used a `() -> AnyView` factory because the list model has to keep heterogeneous SwiftUI row types in one collection. The current implementation type-erases the hosting operation instead.
+
+The old shape was simple, but it erased every row view before UIKit hosting:
+
+```swift
+// Earlier prototype shape
+struct LKItemModel {
+    let makeContent: @MainActor () -> AnyView
+}
+
+LKItemModel {
+    AnyView(MessageRow(message: message))
+}
+```
+
+The current shape keeps the user's concrete SwiftUI view inside a generic box:
+
+```swift
+struct LKAnyViewContent {
+    private let box: any LKAnyViewContentBox
+
+    init<Content: View>(@ViewBuilder _ makeContent: @escaping @MainActor () -> Content) {
+        self.box = LKViewContentBox(makeContent: makeContent)
+    }
+}
+
+private struct LKViewContentBox<Content: View>: LKAnyViewContentBox {
+    let makeContent: @MainActor () -> Content
+}
+```
+
+Internally, `LKAnyViewContent` keeps a small box around the concrete `Content: View` factory. When a cell or supplementary view renders, that box builds the `UIHostingConfiguration` directly and injects ListKit environment values such as selection state, index path, section ID, and item ID.
+
+```swift
+UIHostingConfiguration {
+    makeContent()
+        .environment(\.lkCellState, state)
+        .environment(\.listKitIndexPath, indexPath)
+        .environment(\.listKitSectionID, sectionID)
+        .environment(\.listKitItemID, itemID)
+}
+```
+
+The public API still accepts ordinary `@ViewBuilder` row content, while SwiftUI does not receive an extra `AnyView` wrapper from ListKit's default rendering path. This is an implementation choice, not a guarantee that every screen will be faster; row body cost and SwiftUI hosting cost can still dominate.
 
 ## Delegate Hooks
 
