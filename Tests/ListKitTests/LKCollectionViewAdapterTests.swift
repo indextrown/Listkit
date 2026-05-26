@@ -985,6 +985,28 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         XCTAssertGreaterThan(adapter.lastDifferenceKitChangesetCount, 0)
     }
 
+    func testDifferenceKitInitialLoadUsesReloadWithoutFallbackFlag() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            updateEngine: .differenceKit
+        )
+        let model = LKListModel(
+            sections: [
+                LKSectionModel(
+                    id: "section",
+                    items: (0..<100).map { LKItemModel(id: $0) }
+                ),
+            ]
+        )
+
+        adapter.apply(model)
+
+        XCTAssertFalse(adapter.didFallbackFromDifferenceKit)
+        XCTAssertEqual(adapter.lastDifferenceKitChangesetCount, 0)
+        XCTAssertEqual(adapter.currentModel.sections.first?.items.count, 100)
+    }
+
     func testDifferenceKitRestoresSelectionByItemIdentity() {
         let collectionView = makeCollectionView()
         collectionView.allowsSelection = true
