@@ -47,7 +47,7 @@ final class LKHostingCollectionViewCell: UICollectionViewCell {
             return
         }
 
-        guard let makeContent = item.makeContent else {
+        guard let content = item.content else {
             contentConfiguration = nil
             return
         }
@@ -58,13 +58,12 @@ final class LKHostingCollectionViewCell: UICollectionViewCell {
             isFocused: state.isFocused
         )
         renderedState = cellState
-        contentConfiguration = UIHostingConfiguration {
-            makeContent()
-                .environment(\.lkCellState, cellState)
-                .environment(\.listKitIndexPath, indexPath)
-                .environment(\.listKitSectionID, sectionID)
-                .environment(\.listKitItemID, item.id)
-        }
+        contentConfiguration = content.makeCellContentConfiguration(
+            state: cellState,
+            indexPath: indexPath,
+            sectionID: sectionID,
+            itemID: item.id
+        )
     }
 }
 #endif
