@@ -11,7 +11,7 @@ public struct LKItemModel: Equatable {
     public let contentToken: AnyHashable?
     #if canImport(SwiftUI)
     var events: LKRowEvents
-    let makeContent: (@MainActor () -> AnyView)?
+    let content: LKAnyViewContent?
     #endif
 
     public init(
@@ -28,19 +28,19 @@ public struct LKItemModel: Equatable {
         self.contentToken = contentToken
         #if canImport(SwiftUI)
         self.events = LKRowEvents()
-        self.makeContent = nil
+        self.content = nil
         #endif
     }
 
     #if canImport(SwiftUI)
-    init(
+    init<Content: View>(
         id: some Hashable,
         base: Any? = nil,
         reuseIdentifier: String = "ListKit.LKHostingCollectionViewCell",
         hostingStrategy: LKHostingStrategy = .hostingConfiguration,
         contentToken: AnyHashable? = nil,
         events: LKRowEvents = LKRowEvents(),
-        makeContent: @escaping @MainActor () -> AnyView
+        @ViewBuilder content: @escaping @MainActor () -> Content
     ) {
         self.id = AnyHashable(id)
         self.base = base
@@ -48,7 +48,7 @@ public struct LKItemModel: Equatable {
         self.hostingStrategy = hostingStrategy
         self.contentToken = contentToken
         self.events = events
-        self.makeContent = makeContent
+        self.content = LKAnyViewContent(content)
     }
     #endif
 
