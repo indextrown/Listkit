@@ -13,6 +13,7 @@
 - [요구 사항](#요구-사항)
 - [테스트](#테스트)
 - [SwiftUI List와의 차이](#swiftui-list와의-차이)
+- [AnyView 없는 SwiftUI Hosting](#anyview-없는-swiftui-hosting)
 - [주요 API](#주요-api)
 - [Identity와 Equality](#identity와-equality)
 - [Update Engine](#update-engine)
@@ -117,6 +118,53 @@ xcodebuild -project Examples/SampleApp/SampleApp.xcodeproj -scheme SampleApp -de
 | UIKit escape hatch | 제한적 | 필요한 경우 UIKit 타입 기반 advanced hook 제공 |
 
 기본 시스템 동작만 필요하면 SwiftUI `List`가 더 단순합니다. collection view delegate timing, update engine 선택, collection layout 제어가 필요하면 `ListKit`을 사용합니다.
+
+## AnyView 없는 SwiftUI Hosting
+
+ListKit은 row, header, footer content를 저장할 때 사용자 view를 `AnyView`로 감싸지 않습니다. 초기 prototype은 heterogeneous SwiftUI row type을 하나의 list model에 담기 위해 `() -> AnyView` factory를 사용했지만, 현재 구현은 view 자체가 아니라 hosting 작업을 타입 소거합니다.
+
+기존 형태는 단순했지만, UIKit hosting으로 넘기기 전에 모든 row view를 먼저 지웠습니다.
+
+```swift
+// 초기 prototype 형태
+struct LKItemModel {
+    let makeContent: @MainActor () -> AnyView
+}
+
+LKItemModel {
+    AnyView(MessageRow(message: message))
+}
+```
+
+현재 형태는 사용자가 만든 concrete SwiftUI view를 generic box 안에 보관합니다.
+
+```swift
+struct LKAnyViewContent {
+    private let box: any LKAnyViewContentBox
+
+    init<Content: View>(@ViewBuilder _ makeContent: @escaping @MainActor () -> Content) {
+        self.box = LKViewContentBox(makeContent: makeContent)
+    }
+}
+
+private struct LKViewContentBox<Content: View>: LKAnyViewContentBox {
+    let makeContent: @MainActor () -> Content
+}
+```
+
+내부의 `LKAnyViewContent`는 concrete `Content: View` factory를 작은 generic box에 보관합니다. cell 또는 supplementary view가 렌더링될 때 이 box가 직접 `UIHostingConfiguration`을 만들고, selection state, index path, section ID, item ID 같은 ListKit environment 값을 주입합니다.
+
+```swift
+UIHostingConfiguration {
+    makeContent()
+        .environment(\.lkCellState, state)
+        .environment(\.listKitIndexPath, indexPath)
+        .environment(\.listKitSectionID, sectionID)
+        .environment(\.listKitItemID, itemID)
+}
+```
+
+public API는 그대로 `@ViewBuilder` row content를 받지만, ListKit 기본 렌더링 경로에서는 추가 `AnyView` wrapper를 만들지 않습니다. 이 선택은 모든 화면의 성능 향상을 보장한다는 뜻은 아닙니다. 실제 비용은 row body와 SwiftUI hosting 비용에 크게 좌우됩니다.
 
 ## 주요 API
 
