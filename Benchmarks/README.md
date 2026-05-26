@@ -32,6 +32,7 @@ You can override the simulator, iteration count, implementations, and scroll mem
 
 ```sh
 make benchmark \
+  CONFIGURATION=Release \
   ITERATIONS=5 \
   DESTINATION="platform=iOS Simulator,name=iPhone 15 Pro Max,OS=26.0" \
   IMPLEMENTATIONS="ListKit Diffable,ListKit DifferenceKit,SwiftUI List" \
