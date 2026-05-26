@@ -85,6 +85,10 @@ final class LKUpdateCoordinator {
     }
 
     private func restoreFocus(in collectionView: UICollectionView?) {
+        guard focusRestorationHandler != nil else {
+            return
+        }
+
         collectionView?.setNeedsFocusUpdate()
         focusRestorationHandler?()
     }
