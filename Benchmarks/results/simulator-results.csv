@@ -1,31 +1,31 @@
 implementation,scenario,item_count,median_ms,median_app_ms,median_xctest_ms,median_memory_mb
-ListKit Diffable,Initial load,1000,0.964,0.964,1411.150,51.815
-ListKit Diffable,Append 250,1750,7.965,7.965,1424.089,57.706
-ListKit Diffable,Shuffle,1750,13.998,13.998,1408.171,62.941
-ListKit Diffable,Replace,1750,1.122,1.122,1409.582,64.628
-ListKit Diffable,Scroll memory peak,1750,9248.729,9248.729,9248.729,65.394
-ListKit DifferenceKit,Initial load,1000,1.011,1.011,1410.481,63.753
-ListKit DifferenceKit,Append 250,1750,6.782,6.782,1651.838,62.925
-ListKit DifferenceKit,Shuffle,1750,12.164,12.164,1409.250,64.941
-ListKit DifferenceKit,Replace,1750,1.445,1.445,1414.144,64.581
-ListKit DifferenceKit,Scroll memory peak,1750,9243.639,9243.639,9243.639,65.441
-ListKit Reload,Initial load,1000,1.186,1.186,1396.731,65.081
-ListKit Reload,Append 250,1750,10.651,10.651,1413.185,65.737
-ListKit Reload,Shuffle,1750,11.485,11.485,1411.387,66.050
-ListKit Reload,Replace,1750,1.408,1.408,1409.417,65.878
-ListKit Reload,Scroll memory peak,1750,9271.114,9271.114,9271.114,66.800
-SwiftUI List,Initial load,1000,1.366,1.366,1423.468,66.269
-SwiftUI List,Append 250,1750,4.511,4.511,1410.068,66.441
-SwiftUI List,Shuffle,1750,20.346,20.346,1432.413,67.862
-SwiftUI List,Replace,1750,1.371,1.371,1428.087,69.269
-SwiftUI List,Scroll memory peak,1750,9270.748,9270.748,9270.748,68.769
-LazyVStack,Initial load,1000,1.298,1.298,1412.458,68.941
-LazyVStack,Append 250,1750,3.365,3.365,1420.360,68.925
-LazyVStack,Shuffle,1750,15.339,15.339,1417.869,71.831
-LazyVStack,Replace,1750,1.681,1.681,1422.027,70.847
-LazyVStack,Scroll memory peak,1750,9357.099,9357.099,9357.099,72.581
-UIKit Collection,Initial load,1000,0.988,0.988,1415.202,70.003
-UIKit Collection,Append 250,1750,6.150,6.150,1414.417,71.472
-UIKit Collection,Shuffle,1750,8.280,8.280,1432.033,71.378
-UIKit Collection,Replace,1750,1.216,1.216,1398.380,70.800
-UIKit Collection,Scroll memory peak,1750,9296.699,9296.699,9296.699,71.925
+ListKit Diffable,Initial load,1000,1.129,1.129,1401.359,52.331
+ListKit Diffable,Append 250,1750,8.409,8.409,1500.260,58.050
+ListKit Diffable,Shuffle,1750,13.845,13.845,1425.539,63.378
+ListKit Diffable,Replace,1750,1.287,1.287,1414.518,63.675
+ListKit Diffable,Scroll memory peak,1750,9233.878,9233.878,9233.878,64.456
+ListKit DifferenceKit,Initial load,1000,1.188,1.188,1402.313,61.753
+ListKit DifferenceKit,Append 250,1750,5.666,5.666,1644.333,62.550
+ListKit DifferenceKit,Shuffle,1750,11.835,11.835,1417.221,63.659
+ListKit DifferenceKit,Replace,1750,1.485,1.485,1410.857,64.519
+ListKit DifferenceKit,Scroll memory peak,1750,9221.026,9221.026,9221.026,65.472
+ListKit Reload,Initial load,1000,1.099,1.099,1412.549,61.863
+ListKit Reload,Append 250,1750,10.324,10.324,1406.190,61.722
+ListKit Reload,Shuffle,1750,9.727,9.727,1408.807,61.581
+ListKit Reload,Replace,1750,1.351,1.351,1402.354,61.863
+ListKit Reload,Scroll memory peak,1750,9253.318,9253.318,9253.318,62.753
+SwiftUI List,Initial load,1000,1.249,1.249,1412.532,62.097
+SwiftUI List,Append 250,1750,5.178,5.178,1412.974,62.050
+SwiftUI List,Shuffle,1750,21.024,21.024,1422.332,62.159
+SwiftUI List,Replace,1750,1.446,1.446,1408.732,63.347
+SwiftUI List,Scroll memory peak,1750,9257.599,9257.599,9257.599,62.831
+LazyVStack,Initial load,1000,1.095,1.095,1422.954,62.659
+LazyVStack,Append 250,1750,3.425,3.425,1412.616,62.644
+LazyVStack,Shuffle,1750,16.454,16.454,1411.224,65.488
+LazyVStack,Replace,1750,1.630,1.630,1428.069,64.644
+LazyVStack,Scroll memory peak,1750,9379.585,9379.585,9379.585,66.238
+UIKit Collection,Initial load,1000,1.252,1.252,1414.872,63.706
+UIKit Collection,Append 250,1750,7.628,7.628,1421.875,64.316
+UIKit Collection,Shuffle,1750,8.587,8.587,1421.726,64.347
+UIKit Collection,Replace,1750,1.416,1.416,1421.321,63.659
+UIKit Collection,Scroll memory peak,1750,9246.163,9246.163,9246.163,64.550
