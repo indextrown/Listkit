@@ -18,9 +18,10 @@ public struct LKRow<Item, Content: View> {
         self.model = LKItemModel(
             id: item[keyPath: id],
             base: item,
-            reuseIdentifier: reuseIdentifier,
-            makeContent: { AnyView(content()) }
-        )
+            reuseIdentifier: reuseIdentifier
+        ) {
+            content()
+        }
         self.events = LKRowEvents()
         self.content = { _ in content() }
     }
@@ -34,9 +35,10 @@ public struct LKRow<Item, Content: View> {
         self.model = LKItemModel(
             id: id,
             base: item,
-            reuseIdentifier: reuseIdentifier,
-            makeContent: { AnyView(content()) }
-        )
+            reuseIdentifier: reuseIdentifier
+        ) {
+            content()
+        }
         self.events = LKRowEvents()
         self.content = { _ in content() }
     }
@@ -62,9 +64,10 @@ public struct LKRow<Item, Content: View> {
                 reuseIdentifier: model.reuseIdentifier,
                 hostingStrategy: model.hostingStrategy,
                 contentToken: AnyHashable(token),
-                events: events,
-                makeContent: model.makeContent ?? { AnyView(content(item)) }
-            ),
+                events: events
+            ) {
+                content(item)
+            },
             events: events,
             content: content
         )
