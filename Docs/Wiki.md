@@ -274,3 +274,84 @@ SwiftUI view 타입을 직접 하나의 배열에 저장하려면 결국 타입 
 - `a157289 feat: 섹션 보조 뷰 빌더 경로 정리`
 - `28c0e99 fix: 셀 호스팅 콘텐츠 구성 경로 수정`
 - `51289b7 fix: 보조 뷰 호스팅 콘텐츠 구성 경로 수정`
+
+## KarrotListKit 참고 기반 Adapter 성능 정리
+
+### 참고한 구조
+
+참고 저장소:
+
+- https://github.com/daangn/KarrotListKit
+- `/tmp/KarrotListKit/Sources/KarrotListKit/Adapter/CollectionViewAdapter.swift`
+- `/tmp/KarrotListKit/Sources/KarrotListKit/Extension/UICollectionView+Difference.swift`
+- `/tmp/KarrotListKit/Sources/KarrotListKit/Adapter/ComponentSizeStorage.swift`
+
+KarrotListKit의 adapter는 collection view cell/header/footer 인스턴스를 저장하지 않고, 현재 list snapshot과 등록된 reuse identifier set, size storage, queued update만 보관합니다. ListKit도 같은 방향을 유지합니다.
+
+핵심 대응:
+
+- adapter는 `currentModel` snapshot을 소유합니다.
+- cell/header/footer registration은 각각 `Set<LKCellRegistrationKey>`, `Set<LKSupplementaryRegistrationKey>`로 분리합니다.
+- update 중 새 apply가 들어오면 마지막 update만 queue에 남깁니다.
+- DifferenceKit staged update가 과도하게 커지면 reload fallback으로 전환합니다.
+- size/cache류 상태는 view instance가 아니라 id 또는 index key 기반 저장소에 둡니다.
+
+### 이번 복잡도 개선
+
+기존 selection/focus 복원 경로는 선택된 item id마다 `indexPath(forItemID:in:)`가 전체 모델을 순회했습니다.
+
+```swift
+for selectedID in selectedItemIDs {
+    indexPath(forItemID: selectedID, in: model) // sections/items 선형 탐색
+}
+```
+
+이 구조는 선택 수를 `S`, 전체 item 수를 `N`이라고 할 때 `O(S * N)`입니다. 다중 선택이 많거나 apply가 자주 발생하는 화면에서는 update engine 자체보다 selection 동기화가 비용을 키울 수 있습니다.
+
+현재는 `LKListModelIndex`를 추가해 model snapshot마다 한 번만 `itemID -> IndexPath` map과 live item id set을 만듭니다.
+
+```swift
+struct LKListModelIndex {
+    let indexPathByItemID: [AnyHashable: IndexPath]
+    let itemIDs: Set<AnyHashable>
+}
+```
+
+adapter의 `currentModel`이 바뀌면 기존 `currentModelIndex` cache를 무효화합니다. selection restore, selection binding normalization, prefetch cache pruning, preferred focus lookup 중 하나가 실제로 필요할 때만 index를 만들고 같은 snapshot 안에서는 재사용합니다. selection/focus/prefetch가 없는 일반 update는 index 생성 비용을 내지 않습니다.
+
+복잡도 변화:
+
+- selection restore: `O(S * N)` -> `O(N + S)`
+- selection binding normalization: `O(S * N)` -> `O(N + S)`
+- selected id 적용: `O(S * N)` -> `O(N + S)`
+- preferred focused item lookup: `O(N)` -> model 갱신 후 `O(1)`
+- prefetch pruning: 매번 live id set 재생성 -> model index의 `itemIDs` 재사용
+
+중복 item id가 전역으로 들어온 경우 기존 선형 탐색처럼 먼저 발견된 item을 index에 저장합니다. section 내부 duplicate id는 기존 validation warning/assertion 정책을 그대로 따릅니다.
+
+### 함께 유지한 update 최적화
+
+KarrotListKit의 `UICollectionView.reload(using:interrupt:setData:enablesReconfigureItems:)` 경로를 참고해 ListKit도 DifferenceKit staged changeset을 직접 적용하는 `lkReload` 경로를 둡니다.
+
+적용한 정책:
+
+- 첫 로드에서는 diff 계산 후 batch update를 시도하지 않고 reload로 초기화합니다.
+- append-only update는 전체 registration scan 대신 삽입 item의 cell registration만 확인합니다.
+- 대규모 reorder 또는 큰 staged changeset은 animated batch update 대신 reload fallback을 사용합니다.
+- content token 변경은 가능한 경우 reload보다 `reconfigureItems`를 사용합니다.
+- diffable data source도 첫 로드에서는 `applySnapshotUsingReloadData`를 사용하고, append-only update는 snapshot append 경로를 탑니다.
+
+### 검증 상태
+
+현재 확인:
+
+- `swift test` 통과
+- `make benchmark` 통과
+- 결과 갱신:
+  - `Benchmarks/results/simulator-results.csv`
+  - `Benchmarks/results/simulator-results.svg`
+
+주의:
+
+- macOS SwiftPM 테스트에서는 UIKit 조건부 adapter 테스트가 실행되지 않을 수 있습니다.
+- 현재 수치는 simulator Debug/UI test 기반입니다. 최종 성능 판단은 device Release benchmark를 별도로 봐야 합니다.
