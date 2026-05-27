@@ -461,3 +461,51 @@ The sample app is a compact gallery of ListKit behaviors:
 | Shuffle Diffable | [ShuffleDiffableExample.swift](./Examples/SampleApp/SampleApp/View/ShuffleDiffableExample.swift) | Toolbar-driven row shuffling with the diffable update engine. |
 | Shuffle DifferenceKit | [ShuffleDifferenceKitExample.swift](./Examples/SampleApp/SampleApp/View/ShuffleDifferenceKitExample.swift) | Toolbar-driven row shuffling with the DifferenceKit update engine. |
 | Large Data | [LargeDataExample.swift](./Examples/SampleApp/SampleApp/View/LargeDataExample.swift) | A 1,000-row list for larger snapshot updates. |
+
+## Architecture
+
+```mermaid
+flowchart TD
+    SwiftUIView[SwiftUI View] --> LKList[LKList]
+    LKList --> Modifiers[ListKit modifiers]
+    Modifiers --> Model[LKListModel snapshot]
+    Model --> Representable[LKCollectionViewRepresentable]
+    Representable --> Coordinator[Coordinator]
+    Coordinator --> Adapter[LKCollectionViewAdapter]
+    Adapter --> CollectionView[UICollectionView]
+    Adapter --> UpdateEngine{Update engine}
+    UpdateEngine --> Diffable[UICollectionViewDiffableDataSource]
+    UpdateEngine --> DifferenceKit[DifferenceKit staged changeset]
+    UpdateEngine --> Reload[reloadData]
+    CollectionView --> Hosting[Hosting cells and supplementaries]
+    Hosting --> SwiftUIRows[SwiftUI row/header/footer content]
+    CollectionView --> DelegateCallbacks[UIKit delegate callbacks]
+    DelegateCallbacks --> Adapter
+    Adapter --> EventRouting[Row, section, list event routing]
+    EventRouting --> SwiftUIHandlers[SwiftUI closures]
+```
+
+## Action Flow
+
+```mermaid
+sequenceDiagram
+    participant App as SwiftUI screen
+    participant List as LKList
+    participant Rep as LKCollectionViewRepresentable
+    participant Adapter as LKCollectionViewAdapter
+    participant Engine as Update engine
+    participant CV as UICollectionView
+    participant Cell as Hosting cell
+
+    App->>List: Data or state changes
+    List->>List: Build LKListModel
+    List->>Rep: Pass model, events, configuration
+    Rep->>Adapter: apply(model)
+    Adapter->>Adapter: Validate IDs and register reuse identifiers
+    Adapter->>Engine: Apply snapshot or reload
+    Engine->>CV: Insert, delete, move, reconfigure, or reload
+    CV->>Adapter: Request cell or supplementary view
+    Adapter->>Cell: Render SwiftUI content with metadata environment
+    CV->>Adapter: Selection, display, prefetch, scroll callbacks
+    Adapter->>App: Invoke row, section, or list handler
+```
