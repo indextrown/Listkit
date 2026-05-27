@@ -35,6 +35,7 @@ struct GridLayoutExample: View {
             }
             .sectionLayout(.grid(columns: 2, spacing: 0))
             .itemSpacing(8)
+            .pinnedHeader()
         }
     }
 }
