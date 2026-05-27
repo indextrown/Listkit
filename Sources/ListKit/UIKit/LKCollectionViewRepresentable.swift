@@ -150,7 +150,8 @@ struct LKCollectionViewRepresentable: UIViewRepresentable {
                 selectionConfiguration: selectionConfiguration,
                 scrollConfiguration: scrollConfiguration,
                 refreshConfiguration: refreshConfiguration,
-                diagnosticsMode: diagnosticsMode
+                diagnosticsMode: diagnosticsMode,
+                deferSelectionBindingUpdates: true
             )
         }
 

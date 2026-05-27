@@ -111,6 +111,7 @@ final class LKCollectionViewAdapter: NSObject {
     private var hasAppliedCurrentModel = false
     private var isUpdating = false
     private var queuedUpdate: LKListModel?
+    private var defersSelectionBindingUpdatesForApply = false
     private let updateEngine: LKUpdateEngine
     private let updateCoordinator: LKUpdateCoordinator
     private var diffableDataSource: UICollectionViewDiffableDataSource<LKSectionIdentifier, LKItemIdentifier>?
@@ -162,8 +163,11 @@ final class LKCollectionViewAdapter: NSObject {
         selectionConfiguration: LKSelectionConfiguration? = nil,
         scrollConfiguration: LKScrollConfiguration? = nil,
         refreshConfiguration: LKRefreshConfiguration? = nil,
-        diagnosticsMode: LKListKitDiagnosticsMode? = nil
+        diagnosticsMode: LKListKitDiagnosticsMode? = nil,
+        deferSelectionBindingUpdates: Bool = false
     ) {
+        let previousDeferral = defersSelectionBindingUpdatesForApply
+        defersSelectionBindingUpdatesForApply = deferSelectionBindingUpdates
         if let listEvents {
             self.listEvents = listEvents
         }
@@ -188,11 +192,13 @@ final class LKCollectionViewAdapter: NSObject {
         if model == currentModel, hasAppliedCurrentModel {
             synchronizeSelectionAfterApply()
             prunePrefetchCache()
+            defersSelectionBindingUpdatesForApply = false
             return
         }
 
         guard isUpdating == false else {
             queuedUpdate = model
+            defersSelectionBindingUpdatesForApply = previousDeferral
             return
         }
 
@@ -230,6 +236,7 @@ final class LKCollectionViewAdapter: NSObject {
     private func finishApply() {
         hasAppliedCurrentModel = true
         isUpdating = false
+        defersSelectionBindingUpdatesForApply = false
 
         if let queuedUpdate {
             self.queuedUpdate = nil
@@ -939,8 +946,13 @@ final class LKCollectionViewAdapter: NSObject {
 
         if selectionConfiguration.mode == .none {
             clearSelection(in: collectionView)
-            if selectionConfiguration.hasBinding {
-                selectionConfiguration.setSelectedIDs?([])
+            if selectionConfiguration.hasBinding,
+               selectionConfiguration.selectedIDs().isEmpty == false {
+                updateSelectionBinding(
+                    with: [],
+                    deferring: defersSelectionBindingUpdatesForApply,
+                    replacingCurrentIDs: selectionConfiguration.selectedIDs()
+                )
             }
             return
         }
@@ -949,9 +961,16 @@ final class LKCollectionViewAdapter: NSObject {
             return
         }
 
-        let selectedIDs = normalizedSelectionIDs(selectionConfiguration.selectedIDs())
+        let currentIDs = selectionConfiguration.selectedIDs()
+        let selectedIDs = normalizedSelectionIDs(currentIDs)
         applySelection(selectedIDs, to: collectionView)
-        selectionConfiguration.setSelectedIDs?(selectedIDs)
+        if selectionIDs(currentIDs, areEquivalentTo: selectedIDs) == false {
+            updateSelectionBinding(
+                with: selectedIDs,
+                deferring: defersSelectionBindingUpdatesForApply,
+                replacingCurrentIDs: currentIDs
+            )
+        }
     }
 
     private func updateSelectionBindingAfterUserSelect(itemID: AnyHashable) {
@@ -969,7 +988,7 @@ final class LKCollectionViewAdapter: NSObject {
         case .multiple:
             selectedIDs = currentIDs.contains(itemID) ? currentIDs : currentIDs + [itemID]
         }
-        selectionConfiguration.setSelectedIDs?(normalizedSelectionIDs(selectedIDs))
+        updateSelectionBinding(with: normalizedSelectionIDs(selectedIDs), deferring: false)
     }
 
     private func updateSelectionBindingAfterUserDeselect(itemID: AnyHashable) {
@@ -980,7 +999,54 @@ final class LKCollectionViewAdapter: NSObject {
         let selectedIDs = normalizedSelectionIDs(
             selectionConfiguration.selectedIDs().filter { $0 != itemID }
         )
-        selectionConfiguration.setSelectedIDs?(selectedIDs)
+        updateSelectionBinding(with: selectedIDs, deferring: false)
+    }
+
+    private func updateSelectionBinding(
+        with selectedIDs: [AnyHashable],
+        deferring: Bool,
+        replacingCurrentIDs currentIDs: [AnyHashable]? = nil
+    ) {
+        guard selectionConfiguration.hasBinding else {
+            return
+        }
+
+        if deferring {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let currentIDs,
+                   self.rawSelectionIDs(
+                       self.selectionConfiguration.selectedIDs(),
+                       areEquivalentTo: currentIDs
+                   ) == false {
+                    return
+                }
+                self.selectionConfiguration.setSelectedIDs?(selectedIDs)
+            }
+        } else {
+            selectionConfiguration.setSelectedIDs?(selectedIDs)
+        }
+    }
+
+    private func rawSelectionIDs(
+        _ lhs: [AnyHashable],
+        areEquivalentTo rhs: [AnyHashable]
+    ) -> Bool {
+        Set(lhs) == Set(rhs)
+    }
+
+    private func selectionIDs(
+        _ lhs: [AnyHashable],
+        areEquivalentTo rhs: [AnyHashable]
+    ) -> Bool {
+        switch selectionConfiguration.mode {
+        case .none:
+            lhs.isEmpty && rhs.isEmpty
+        case .single:
+            lhs.first == rhs.first
+        case .multiple:
+            Set(lhs) == Set(rhs)
+        }
     }
 
     private func normalizedSelectionIDs(_ ids: [AnyHashable]) -> [AnyHashable] {
@@ -1275,7 +1341,11 @@ private extension LKSectionModel {
             && supplementaries == other.supplementaries
 
         #if canImport(UIKit)
-        return coreMatches && layout == other.layout
+        return coreMatches
+            && layout == other.layout
+            && scrollAxis == other.scrollAxis
+            && itemSpacing == other.itemSpacing
+            && pinsHeader == other.pinsHeader
         #else
         return coreMatches
         #endif

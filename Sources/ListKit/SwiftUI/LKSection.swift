@@ -111,6 +111,42 @@ public struct LKSection {
             rows: rows
         )
     }
+
+    public func scrollAxis(_ axis: LKSectionScrollAxis) -> Self {
+        var model = model
+        model.scrollAxis = axis
+        return Self(
+            model: model,
+            events: events,
+            headerEvents: headerEvents,
+            footerEvents: footerEvents,
+            rows: rows
+        )
+    }
+
+    public func itemSpacing(_ spacing: CGFloat) -> Self {
+        var model = model
+        model.itemSpacing = max(spacing, 0)
+        return Self(
+            model: model,
+            events: events,
+            headerEvents: headerEvents,
+            footerEvents: footerEvents,
+            rows: rows
+        )
+    }
+
+    public func pinnedHeader(_ isPinned: Bool = true) -> Self {
+        var model = model
+        model.pinsHeader = isPinned
+        return Self(
+            model: model,
+            events: events,
+            headerEvents: headerEvents,
+            footerEvents: footerEvents,
+            rows: rows
+        )
+    }
     #endif
 
     public func onShouldSelect(_ handler: @escaping (LKAnyItemContext) -> Bool) -> Self {

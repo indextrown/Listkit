@@ -526,6 +526,75 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         XCTAssertTrue(collectionView.indexPathsForSelectedItems?.isEmpty ?? true)
     }
 
+    func testSelectionBindingPruningCanBeDeferredDuringRepresentableUpdate() async {
+        let collectionView = makeCollectionView()
+        var selectedIDs: Set<String> = ["one", "missing"]
+        let selection = LKSelectionConfiguration(
+            selection: Binding<Set<String>>(
+                get: { selectedIDs },
+                set: { selectedIDs = $0 }
+            )
+        )
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            selectionConfiguration: selection
+        )
+        let model = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "one"),
+                    LKItemModel(id: "two"),
+                ]),
+            ]
+        )
+
+        adapter.apply(
+            model,
+            selectionConfiguration: selection,
+            deferSelectionBindingUpdates: true
+        )
+
+        XCTAssertEqual(selectedIDs, ["one", "missing"])
+
+        await Task.yield()
+
+        XCTAssertEqual(selectedIDs, ["one"])
+    }
+
+    func testDeferredSelectionPruningDoesNotOverwriteNewerSelection() async {
+        let collectionView = makeCollectionView()
+        var selectedIDs: Set<String> = ["one", "missing"]
+        let selection = LKSelectionConfiguration(
+            selection: Binding<Set<String>>(
+                get: { selectedIDs },
+                set: { selectedIDs = $0 }
+            )
+        )
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            selectionConfiguration: selection
+        )
+        let model = LKListModel(
+            sections: [
+                LKSectionModel(id: "section", items: [
+                    LKItemModel(id: "one"),
+                    LKItemModel(id: "two"),
+                ]),
+            ]
+        )
+
+        adapter.apply(
+            model,
+            selectionConfiguration: selection,
+            deferSelectionBindingUpdates: true
+        )
+        selectedIDs = ["two"]
+
+        await Task.yield()
+
+        XCTAssertEqual(selectedIDs, ["two"])
+    }
+
     func testSelectionModeNoneDisablesSelectionAndClearsBinding() {
         let collectionView = makeCollectionView()
         var selectedID: String? = "one"

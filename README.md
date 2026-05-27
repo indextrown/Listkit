@@ -455,7 +455,7 @@ The sample app is a compact gallery of ListKit behaviors:
 | Prefetch | [PrefetchExample.swift](./Examples/SampleApp/SampleApp/View/PrefetchExample.swift) | Infinite scrolling with `onReachEnd`, appending the next page before the user reaches the end. |
 | Image Prefetch | [ImagePrefetchExample.swift](./Examples/SampleApp/SampleApp/View/ImagePrefetchExample.swift) | Image loading cache driven by `.onPrefetch` and `.onCancelPrefetch` collection view callbacks. |
 | Context Menu | [ContextMenuExample.swift](./Examples/SampleApp/SampleApp/View/ContextMenuExample.swift) | SwiftUI row-level context menus inside ListKit rows. |
-| Grid Layout | [GridLayoutExample.swift](./Examples/SampleApp/SampleApp/View/GridLayoutExample.swift) | Section-level grid layout using `.sectionLayout(.grid(...))`. |
+| Grid Layout | [GridLayoutExample.swift](./Examples/SampleApp/SampleApp/View/GridLayoutExample.swift) | Section-level grid layout, cell spacing, and horizontal section scrolling using `.itemSpacing(...)` and `.scrollAxis(.horizontal)`. |
 | Diffable Engine | [DiffableEngineExample.swift](./Examples/SampleApp/SampleApp/View/DiffableEngineExample.swift) | The Apple `UICollectionViewDiffableDataSource` update engine. |
 | DifferenceKit Engine | [DifferenceKitEngineExample.swift](./Examples/SampleApp/SampleApp/View/DifferenceKitEngineExample.swift) | The DifferenceKit staged update engine. |
 | Shuffle Diffable | [ShuffleDiffableExample.swift](./Examples/SampleApp/SampleApp/View/ShuffleDiffableExample.swift) | Toolbar-driven row shuffling with the diffable update engine. |

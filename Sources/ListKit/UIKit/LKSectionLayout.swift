@@ -7,6 +7,11 @@ public enum LKSectionLayout {
     case custom(@MainActor (Int, NSCollectionLayoutEnvironment) -> NSCollectionLayoutSection)
 }
 
+public enum LKSectionScrollAxis: Hashable, Sendable {
+    case vertical
+    case horizontal
+}
+
 extension LKSectionLayout: Equatable {
     public static func == (lhs: Self, rhs: Self) -> Bool {
         switch (lhs, rhs) {

@@ -61,6 +61,42 @@ final class LKCollectionLayoutProviderTests: XCTestCase {
         )
     }
 
+    func testLayoutSignatureChangesWhenSectionScrollAxisChanges() {
+        let originalModel = makeModel()
+        var changedSection = originalModel.sections[0]
+        changedSection.scrollAxis = .horizontal
+        let changedModel = LKListModel(sections: [changedSection])
+
+        XCTAssertNotEqual(
+            LKCollectionLayoutProvider.signature(model: originalModel, defaultStyle: .plain),
+            LKCollectionLayoutProvider.signature(model: changedModel, defaultStyle: .plain)
+        )
+    }
+
+    func testLayoutSignatureChangesWhenSectionItemSpacingChanges() {
+        let originalModel = makeModel()
+        var changedSection = originalModel.sections[0]
+        changedSection.itemSpacing = 12
+        let changedModel = LKListModel(sections: [changedSection])
+
+        XCTAssertNotEqual(
+            LKCollectionLayoutProvider.signature(model: originalModel, defaultStyle: .plain),
+            LKCollectionLayoutProvider.signature(model: changedModel, defaultStyle: .plain)
+        )
+    }
+
+    func testLayoutSignatureChangesWhenSectionHeaderPinningChanges() {
+        let originalModel = makeModel()
+        var changedSection = originalModel.sections[0]
+        changedSection.pinsHeader = true
+        let changedModel = LKListModel(sections: [changedSection])
+
+        XCTAssertNotEqual(
+            LKCollectionLayoutProvider.signature(model: originalModel, defaultStyle: .plain),
+            LKCollectionLayoutProvider.signature(model: changedModel, defaultStyle: .plain)
+        )
+    }
+
     private func makeCollectionView(
         model: LKListModel,
         style: LKListStyle

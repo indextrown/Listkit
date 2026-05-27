@@ -1,3 +1,7 @@
+#if canImport(CoreGraphics)
+import CoreGraphics
+#endif
+
 /// Collection-view section model used by the adapter and update engines.
 public struct LKSectionModel: Equatable {
     public let id: AnyHashable
@@ -12,6 +16,9 @@ public struct LKSectionModel: Equatable {
     #endif
     #if canImport(UIKit)
     public var layout: LKSectionLayout?
+    public var scrollAxis: LKSectionScrollAxis
+    public var itemSpacing: CGFloat?
+    public var pinsHeader: Bool
     #endif
 
     public init(
@@ -33,6 +40,9 @@ public struct LKSectionModel: Equatable {
         #endif
         #if canImport(UIKit)
         self.layout = nil
+        self.scrollAxis = .vertical
+        self.itemSpacing = nil
+        self.pinsHeader = false
         #endif
     }
 
@@ -43,7 +53,10 @@ public struct LKSectionModel: Equatable {
         header: LKSupplementaryModel? = nil,
         footer: LKSupplementaryModel? = nil,
         supplementaries: [LKSupplementaryModel] = [],
-        layout: LKSectionLayout?
+        layout: LKSectionLayout?,
+        scrollAxis: LKSectionScrollAxis = .vertical,
+        itemSpacing: CGFloat? = nil,
+        pinsHeader: Bool = false
     ) {
         self.id = AnyHashable(id)
         self.items = items
@@ -56,6 +69,9 @@ public struct LKSectionModel: Equatable {
         self.footerEvents = LKSupplementaryEvents()
         #endif
         self.layout = layout
+        self.scrollAxis = scrollAxis
+        self.itemSpacing = itemSpacing
+        self.pinsHeader = pinsHeader
     }
     #endif
 
@@ -78,7 +94,11 @@ public struct LKSectionModel: Equatable {
             && lhs.supplementaries == rhs.supplementaries
 
         #if canImport(UIKit)
-        return coreIsEqual && lhs.layout == rhs.layout
+        return coreIsEqual
+            && lhs.layout == rhs.layout
+            && lhs.scrollAxis == rhs.scrollAxis
+            && lhs.itemSpacing == rhs.itemSpacing
+            && lhs.pinsHeader == rhs.pinsHeader
         #else
         return coreIsEqual
         #endif

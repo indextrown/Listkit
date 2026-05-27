@@ -201,6 +201,17 @@ final class LKExamplesCompilationTests: XCTestCase {
 
     func testGridDifferenceKitAndLargeDataExamplesStoreConfiguration() {
         let gridList = LKList {
+            LKSection(id: "featured") {
+                for message in messages.prefix(6) {
+                    LKRow(message, id: \.id) {
+                        ExampleMessageRow(message: message)
+                            .frame(width: 220)
+                    }
+                }
+            }
+            .scrollAxis(.horizontal)
+            .itemSpacing(12)
+
             LKSection(id: "grid") {
                 for message in messages {
                     LKRow(message, id: \.id) {
@@ -208,7 +219,8 @@ final class LKExamplesCompilationTests: XCTestCase {
                     }
                 }
             }
-            .sectionLayout(.grid(columns: 2, spacing: 8))
+            .sectionLayout(.grid(columns: 2, spacing: 0))
+            .itemSpacing(8)
         }
 
         let differenceKitList = LKList(messages, id: \.id) { message in
@@ -224,7 +236,12 @@ final class LKExamplesCompilationTests: XCTestCase {
         }
         .updateEngine(.diffableDataSource)
 
-        XCTAssertEqual(gridList.model.sections[0].layout, .grid(columns: 2, spacing: 8))
+        XCTAssertNil(gridList.model.sections[0].layout)
+        XCTAssertEqual(gridList.model.sections[0].scrollAxis, .horizontal)
+        XCTAssertEqual(gridList.model.sections[0].itemSpacing, 12)
+        XCTAssertEqual(gridList.model.sections[1].layout, .grid(columns: 2, spacing: 0))
+        XCTAssertEqual(gridList.model.sections[1].scrollAxis, .vertical)
+        XCTAssertEqual(gridList.model.sections[1].itemSpacing, 8)
         XCTAssertEqual(differenceKitList.updateEngine, .differenceKit)
         XCTAssertEqual(largeDataList.model.sections[0].items.count, 1_000)
         XCTAssertEqual(largeDataList.updateEngine, .diffableDataSource)

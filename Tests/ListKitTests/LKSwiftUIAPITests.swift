@@ -129,6 +129,65 @@ final class LKSwiftUIAPITests: XCTestCase {
         XCTAssertEqual(list.model.sections[0].layout, .grid(columns: 2, spacing: 8))
     }
 
+    func testSectionScrollAxisModifierStoresAxisInModel() {
+        let verticalList = LKList {
+            LKSection(id: "section") {
+                LKRow(id: "item") {
+                    Text("Item")
+                }
+            }
+        }
+        let horizontalList = LKList {
+            LKSection(id: "section") {
+                LKRow(id: "item") {
+                    Text("Item")
+                }
+            }
+            .scrollAxis(.horizontal)
+        }
+
+        XCTAssertEqual(verticalList.model.sections[0].scrollAxis, .vertical)
+        XCTAssertEqual(horizontalList.model.sections[0].scrollAxis, .horizontal)
+    }
+
+    func testSectionItemSpacingModifierStoresSpacingInModel() {
+        let list = LKList {
+            LKSection(id: "section") {
+                LKRow(id: "item") {
+                    Text("Item")
+                }
+            }
+            .itemSpacing(12)
+        }
+
+        XCTAssertEqual(list.model.sections[0].itemSpacing, 12)
+    }
+
+    func testPinnedHeaderModifierStoresPinningInModel() {
+        let defaultList = LKList {
+            LKSection(id: "section") {
+                LKRow(id: "item") {
+                    Text("Item")
+                }
+            } header: {
+                Text("Header")
+            }
+        }
+        let pinnedList = LKList {
+            LKSection(id: "section") {
+                LKRow(id: "item") {
+                    Text("Item")
+                }
+            } header: {
+                Text("Header")
+            }
+            .pinnedHeader()
+        }
+
+        XCTAssertFalse(defaultList.model.sections[0].pinsHeader)
+        XCTAssertTrue(pinnedList.model.sections[0].pinsHeader)
+    }
+
     func testSectionSupplementaryDisplayModifiersStoreHandlersInModel() {
         let list = LKList {
             LKSection(id: "section") {
