@@ -10,6 +10,12 @@ SwiftUI의 기본 `List`는 `refreshable`, `searchable`, `listStyle`, `swipeActi
 
 이 문서는 사람과 에이전트가 `ListKit`을 0부터 100까지 설계, 구현, 리뷰, 문서화할 때 따라야 할 상세 명세입니다.
 
+## 저장소 운영 규칙
+
+- 커밋 메시지는 `타입: 한글 문장` 형식을 사용합니다.
+- 타입은 `feat`, `fix`, `chore`, `refactor`, `docs` 중 하나만 사용합니다.
+- 예: `fix: 초기 diffable 리스트 렌더링 문제 수정`
+
 ## 한 줄 정의
 
 `ListKit`은 "SwiftUI 문법으로 쓰는 UICollectionView 기반 고급 List"입니다.

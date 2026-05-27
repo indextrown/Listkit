@@ -804,6 +804,22 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         XCTAssertEqual(collectionView.numberOfItems(inSection: 0), 0)
     }
 
+    func testDiffableDataSourceAppliesInitialModelEvenWhenItMatchesCurrentModel() async {
+        let collectionView = makeCollectionView()
+        let model = makeModel(sectionID: "initial", itemID: "item")
+        let adapter = LKCollectionViewAdapter(
+            collectionView: collectionView,
+            model: model,
+            updateEngine: .diffableDataSource
+        )
+
+        await applyDiffable(model, to: adapter)
+
+        XCTAssertEqual(collectionView.numberOfSections, 1)
+        XCTAssertEqual(collectionView.numberOfItems(inSection: 0), 1)
+        XCTAssertEqual(adapter.currentModel, model)
+    }
+
     func testDiffableDataSourceRegistersSupplementaryProviderAndCellProvider() async {
         let collectionView = makeCollectionView()
         let adapter = LKCollectionViewAdapter(

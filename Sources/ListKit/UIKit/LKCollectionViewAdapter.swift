@@ -108,6 +108,7 @@ final class LKCollectionViewAdapter: NSObject {
     private(set) var lastReconfiguredItemIdentifiers = [LKItemIdentifier]()
     private(set) var lastDifferenceKitChangesetCount = 0
     private(set) var didFallbackFromDifferenceKit = false
+    private var hasAppliedCurrentModel = false
     private var isUpdating = false
     private var queuedUpdate: LKListModel?
     private let updateEngine: LKUpdateEngine
@@ -184,7 +185,7 @@ final class LKCollectionViewAdapter: NSObject {
         configurePrefetchBehavior(on: collectionView)
         emitApplyWarnings(for: model)
 
-        if model == currentModel {
+        if model == currentModel, hasAppliedCurrentModel {
             synchronizeSelectionAfterApply()
             prunePrefetchCache()
             return
@@ -227,6 +228,7 @@ final class LKCollectionViewAdapter: NSObject {
     }
 
     private func finishApply() {
+        hasAppliedCurrentModel = true
         isUpdating = false
 
         if let queuedUpdate {
