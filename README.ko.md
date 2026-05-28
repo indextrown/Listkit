@@ -19,6 +19,7 @@
 - [Update Engine](#update-engine)
 - [Refresh와 Search](#refresh와-search)
 - [Context Menu](#context-menu)
+- [Swipe Actions](#swipe-actions)
 - [성능 디버깅](#성능-디버깅)
 - [벤치마크](#벤치마크)
 - [SwiftUI List에서 이전하기](#swiftui-list에서-이전하기)
@@ -179,6 +180,7 @@ public API는 그대로 `@ViewBuilder` row content를 받지만, ListKit 기본 
 | prefetch | `.onPrefetch`, `.onCancelPrefetch` |
 | primary action | `.onCanPerformPrimaryAction`, `.onPrimaryAction` |
 | context menu advanced hook | `.uiContextMenuConfiguration`, `.onPreviewCommit`, `.previewForHighlightingContextMenu`, `.previewForDismissingContextMenu` |
+| swipe actions | `.swipeActions(edge:allowsFullSwipe:actions:)` |
 | scroll | `.onScroll`, `.onWillBeginDragging`, `.onDidEndDragging`, `.onReachEnd` |
 
 row-level handler가 section-level handler보다 우선하고, section-level handler가 list-level handler보다 우선합니다.
@@ -271,6 +273,30 @@ LKList(messages, id: \.id) { message in
 ```
 
 UIKit preview controller, targeted preview, commit animator가 필요하면 ListKit의 advanced context menu hook을 사용합니다.
+
+## Swipe Actions
+
+row, section, list 레벨에 `LKSwipeAction` 기반 swipe action을 붙일 수 있습니다. 우선순위는 row, section, list 순서입니다.
+
+```swift
+LKList(messages, id: \.id) { message in
+    MessageRow(message: message)
+}
+.swipeActions(edge: .trailing, allowsFullSwipe: false) { context in
+    [
+        LKSwipeAction(style: .destructive, title: "Delete") { context, completion in
+            delete(context.id)
+            completion(true)
+        },
+        LKSwipeAction(title: "Archive", backgroundColor: .systemBlue) { context, completion in
+            archive(context.id)
+            completion(true)
+        },
+    ]
+}
+```
+
+내부 구현은 UIKit `UISwipeActionsConfiguration`을 사용하므로 collection view list row의 시스템 swipe 동작을 따릅니다.
 
 ## 성능 디버깅
 

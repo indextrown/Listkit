@@ -1275,6 +1275,49 @@ final class LKCollectionViewAdapter: NSObject {
         return (context, item.events, section.events)
     }
 
+    private func swipeActionsConfiguration(
+        at indexPath: IndexPath,
+        edge: LKSwipeActionsEdge
+    ) -> UISwipeActionsConfiguration? {
+        guard let sources = itemEventSources(at: indexPath) else {
+            return nil
+        }
+
+        let provider: ((LKAnyItemContext) -> LKSwipeActions?)?
+        switch edge {
+        case .leading:
+            provider = sources.rowEvents.leadingSwipeActions
+                ?? sources.sectionEvents.leadingSwipeActions
+                ?? listEvents.leadingSwipeActions
+        case .trailing:
+            provider = sources.rowEvents.trailingSwipeActions
+                ?? sources.sectionEvents.trailingSwipeActions
+                ?? listEvents.trailingSwipeActions
+        }
+
+        guard
+            let swipeActions = provider?(sources.context),
+            swipeActions.actions.isEmpty == false
+        else {
+            return nil
+        }
+
+        let actions = swipeActions.actions.map { action in
+            let contextualAction = UIContextualAction(
+                style: action.style,
+                title: action.title
+            ) { _, _, completion in
+                action.handler(sources.context, completion)
+            }
+            contextualAction.image = action.image
+            contextualAction.backgroundColor = action.backgroundColor
+            return contextualAction
+        }
+        let configuration = UISwipeActionsConfiguration(actions: actions)
+        configuration.performsFirstActionWithFullSwipe = swipeActions.allowsFullSwipe
+        return configuration
+    }
+
     private func supplementaryContext(kind: String, at indexPath: IndexPath) -> LKSupplementaryContext? {
         let supplementaryKind: LKSupplementaryKind
 
@@ -1606,6 +1649,20 @@ extension LKCollectionViewAdapter: UICollectionViewDelegate {
             ?? listEvents.didEndDisplaying {
             handler(sources.context)
         }
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        leadingSwipeActionsConfigurationForItemAt indexPath: IndexPath
+    ) -> UISwipeActionsConfiguration? {
+        swipeActionsConfiguration(at: indexPath, edge: .leading)
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        trailingSwipeActionsConfigurationForItemAt indexPath: IndexPath
+    ) -> UISwipeActionsConfiguration? {
+        swipeActionsConfiguration(at: indexPath, edge: .trailing)
     }
 
     func collectionView(

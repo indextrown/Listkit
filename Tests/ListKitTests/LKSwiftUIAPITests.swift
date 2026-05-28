@@ -366,6 +366,52 @@ final class LKSwiftUIAPITests: XCTestCase {
         XCTAssertNotNil(list.events.shouldSpringLoad)
     }
 
+    func testSwipeActionModifiersStoreEvents() {
+        let list = LKList([Message(id: 1, title: "One")], id: \.id) { message in
+            Text(message.title)
+        }
+        .swipeActions(edge: .leading, allowsFullSwipe: false) { _ in
+            [
+                LKSwipeAction(title: "Pin") { _, completion in
+                    completion(true)
+                },
+            ]
+        }
+        .swipeActions(edge: .trailing) { _ in
+            [
+                LKSwipeAction(style: .destructive, title: "Delete") { _, completion in
+                    completion(true)
+                },
+            ]
+        }
+
+        let row = LKRow(Message(id: 2, title: "Two"), id: \.id) {
+            Text("Two")
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) { _ in
+            [
+                LKSwipeAction(title: "Archive") { _, completion in
+                    completion(true)
+                },
+            ]
+        }
+        let section = LKSection(id: "section") {
+            row
+        }
+        .swipeActions(edge: .leading) { _ in
+            [
+                LKSwipeAction(title: "Read") { _, completion in
+                    completion(true)
+                },
+            ]
+        }
+
+        XCTAssertNotNil(list.events.leadingSwipeActions)
+        XCTAssertNotNil(list.events.trailingSwipeActions)
+        XCTAssertNotNil(section.model.events.leadingSwipeActions)
+        XCTAssertNotNil(section.model.items[0].events.trailingSwipeActions)
+    }
+
     func testRefreshModifiersStoreConfiguration() {
         let list = LKList([Message(id: 1, title: "One")], id: \.id) { message in
             Text(message.title)

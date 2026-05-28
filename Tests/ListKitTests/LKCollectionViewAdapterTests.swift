@@ -1827,6 +1827,92 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         ])
     }
 
+    func testSwipeActionsRouteByEdgeAndHandlerPriority() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let indexPath = IndexPath.lkIndexPath(item: 0, section: 0)
+        var routedEvents = [String]()
+        var listEvents = LKListEvents()
+        var sectionEvents = LKSectionEvents()
+        var rowEvents = LKRowEvents()
+
+        listEvents.leadingSwipeActions = { context in
+            routedEvents.append("list-leading:\(context.id)")
+            return LKSwipeActions(
+                actions: [
+                    LKSwipeAction(title: "List Leading") { _, completion in
+                        completion(true)
+                    },
+                ],
+                allowsFullSwipe: true
+            )
+        }
+        listEvents.trailingSwipeActions = { context in
+            routedEvents.append("list-trailing:\(context.id)")
+            return LKSwipeActions(
+                actions: [
+                    LKSwipeAction(title: "List Trailing") { _, completion in
+                        completion(true)
+                    },
+                ],
+                allowsFullSwipe: true
+            )
+        }
+        sectionEvents.trailingSwipeActions = { context in
+            routedEvents.append("section-trailing:\(context.id)")
+            return LKSwipeActions(
+                actions: [
+                    LKSwipeAction(title: "Section Trailing") { _, completion in
+                        completion(true)
+                    },
+                ],
+                allowsFullSwipe: true
+            )
+        }
+        rowEvents.trailingSwipeActions = { context in
+            routedEvents.append("row-trailing:\(context.id)")
+            return LKSwipeActions(
+                actions: [
+                    LKSwipeAction(
+                        style: .destructive,
+                        title: "Delete",
+                        backgroundColor: .systemRed
+                    ) { _, completion in
+                        completion(true)
+                    },
+                ],
+                allowsFullSwipe: false
+            )
+        }
+
+        var item = LKItemModel(id: "item")
+        item.events = rowEvents
+        var section = LKSectionModel(id: "section", items: [item])
+        section.events = sectionEvents
+
+        adapter.apply(LKListModel(sections: [section]), listEvents: listEvents)
+
+        let leadingConfiguration = adapter.collectionView(
+            collectionView,
+            leadingSwipeActionsConfigurationForItemAt: indexPath
+        )
+        let trailingConfiguration = adapter.collectionView(
+            collectionView,
+            trailingSwipeActionsConfigurationForItemAt: indexPath
+        )
+
+        XCTAssertEqual(leadingConfiguration?.actions.map(\.title), ["List Leading"])
+        XCTAssertTrue(leadingConfiguration?.performsFirstActionWithFullSwipe == true)
+        XCTAssertEqual(trailingConfiguration?.actions.map(\.title), ["Delete"])
+        XCTAssertFalse(trailingConfiguration?.performsFirstActionWithFullSwipe ?? true)
+        XCTAssertEqual(trailingConfiguration?.actions.first?.style, .destructive)
+        XCTAssertEqual(trailingConfiguration?.actions.first?.backgroundColor, .systemRed)
+        XCTAssertEqual(routedEvents, [
+            "list-leading:item",
+            "row-trailing:item",
+        ])
+    }
+
     private func makeCollectionView() -> UICollectionView {
         let layout = UICollectionViewFlowLayout()
         layout.headerReferenceSize = CGSize(width: 320, height: 44)

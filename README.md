@@ -22,6 +22,7 @@ The project goal is to keep SwiftUI-style list declaration while exposing the co
 - [Dynamic Height And Self-Sizing](#dynamic-height-and-self-sizing)
 - [Refresh And Search](#refresh-and-search)
 - [Context Menus](#context-menus)
+- [Swipe Actions](#swipe-actions)
 - [Diagnostics](#diagnostics)
 - [Performance Troubleshooting](#performance-troubleshooting)
 - [Benchmarks](#benchmarks)
@@ -199,6 +200,7 @@ Common hooks are exposed as typed SwiftUI modifiers:
 | primary action | `.onCanPerformPrimaryAction`, `.onPrimaryAction` |
 | multiple selection interaction | `.onShouldBeginMultipleSelectionInteraction`, `.onBeginMultipleSelectionInteraction`, `.onEndMultipleSelectionInteraction` |
 | context menu delegate | `.uiContextMenuConfiguration`, `.onPreviewCommit`, `.previewForHighlightingContextMenu`, `.previewForDismissingContextMenu` |
+| swipe actions | `.swipeActions(edge:allowsFullSwipe:actions:)` |
 | focus delegate | `.onCanFocus`, `.onShouldUpdateFocus`, `.onDidUpdateFocus`, `.preferredFocusedItem` |
 | legacy edit menu actions | `.onShouldShowEditMenu`, `.onCanPerformMenuAction`, `.onPerformMenuAction` |
 | spring loading | `.onShouldSpringLoad` |
@@ -353,6 +355,30 @@ LKList(messages, id: \.id) { message in
     // Handle UIKit preview commit animation.
 }
 ```
+
+## Swipe Actions
+
+Add row, section, or list-level swipe actions with `LKSwipeAction`. Row-level handlers override section-level handlers, and section-level handlers override list-level handlers.
+
+```swift
+LKList(messages, id: \.id) { message in
+    MessageRow(message: message)
+}
+.swipeActions(edge: .trailing, allowsFullSwipe: false) { context in
+    [
+        LKSwipeAction(style: .destructive, title: "Delete") { context, completion in
+            delete(context.id)
+            completion(true)
+        },
+        LKSwipeAction(title: "Archive", backgroundColor: .systemBlue) { context, completion in
+            archive(context.id)
+            completion(true)
+        },
+    ]
+}
+```
+
+Swipe actions use UIKit `UISwipeActionsConfiguration` under the hood, so they follow the system collection-view behavior for list rows.
 
 ## Diagnostics
 

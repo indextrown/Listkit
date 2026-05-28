@@ -359,6 +359,27 @@ public struct LKList<Content: View>: View {
         events.shouldSpringLoad = handler
         return replacing(events: events)
     }
+
+    public func swipeActions(
+        edge: LKSwipeActionsEdge = .trailing,
+        allowsFullSwipe: Bool = true,
+        actions: @escaping (LKAnyItemContext) -> [LKSwipeAction]
+    ) -> Self {
+        var events = events
+        let provider: (LKAnyItemContext) -> LKSwipeActions? = { context in
+            let actions = actions(context)
+            guard actions.isEmpty == false else { return nil }
+            return LKSwipeActions(actions: actions, allowsFullSwipe: allowsFullSwipe)
+        }
+
+        switch edge {
+        case .leading:
+            events.leadingSwipeActions = provider
+        case .trailing:
+            events.trailingSwipeActions = provider
+        }
+        return replacing(events: events)
+    }
     #endif
 
     public func scrollIndicators(_ visibility: LKScrollIndicatorVisibility) -> Self {

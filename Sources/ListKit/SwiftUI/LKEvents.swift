@@ -121,6 +121,8 @@ public struct LKListEvents {
     var canPerformMenuAction: ((LKAnyItemContext, Selector, Any?) -> Bool)?
     var performMenuAction: ((LKAnyItemContext, Selector, Any?) -> Void)?
     var shouldSpringLoad: ((LKAnyItemContext, UISpringLoadedInteractionContext) -> Bool)?
+    var leadingSwipeActions: ((LKAnyItemContext) -> LKSwipeActions?)?
+    var trailingSwipeActions: ((LKAnyItemContext) -> LKSwipeActions?)?
     #endif
     public init() {}
 }
@@ -136,6 +138,10 @@ public struct LKSectionEvents {
     var didUnhighlight: ((LKAnyItemContext) -> Void)?
     var willDisplay: ((LKAnyItemContext) -> Void)?
     var didEndDisplaying: ((LKAnyItemContext) -> Void)?
+    #if canImport(UIKit)
+    var leadingSwipeActions: ((LKAnyItemContext) -> LKSwipeActions?)?
+    var trailingSwipeActions: ((LKAnyItemContext) -> LKSwipeActions?)?
+    #endif
     public init() {}
 }
 
@@ -150,6 +156,10 @@ public struct LKRowEvents {
     var didUnhighlight: ((LKAnyItemContext) -> Void)?
     var willDisplay: ((LKAnyItemContext) -> Void)?
     var didEndDisplaying: ((LKAnyItemContext) -> Void)?
+    #if canImport(UIKit)
+    var leadingSwipeActions: ((LKAnyItemContext) -> LKSwipeActions?)?
+    var trailingSwipeActions: ((LKAnyItemContext) -> LKSwipeActions?)?
+    #endif
     public init() {}
 }
 

@@ -1228,13 +1228,14 @@ Drag/drop은 selection, reordering, diff update와 충돌하기 쉬우므로 별
 
 SwiftUI `swipeActions`와 유사한 API를 목표로 하되, 내부는 collection view list cell accessories 또는 custom action view 중 하나를 선택해야 합니다.
 
-1차 구현 필수는 아닙니다.
+현재 구현은 UIKit `UISwipeActionsConfiguration`을 사용합니다. public API는 `LKSwipeAction` 배열을 반환하는 `.swipeActions(edge:allowsFullSwipe:actions:)` modifier이며 list, section, row 레벨에서 사용할 수 있습니다.
 
-권장 방향:
+동작 방향:
 
-- list appearance layout에서는 system swipe action 사용 가능성 검토
+- list appearance layout에서는 system swipe action을 사용합니다.
 - grid/custom layout에서는 custom implementation 필요
 - public API는 layout별 동작 차이를 숨기거나 명확히 문서화해야 합니다.
+- handler 우선순위는 row, section, list 순서입니다.
 
 ## Environment와 State 전달
 
@@ -1945,6 +1946,23 @@ README의 첫 예시는 너무 단순한 todo list가 아니라, `onSelect`, `on
 
 - [x] delegate 대응표의 모든 항목에 public hook이 있습니다.
 - [x] UIKit 타입 의존 API는 advanced 이름을 사용합니다.
+
+### 16.5. Swipe Actions
+
+- [x] `LKSwipeAction` public model을 구현합니다.
+- [x] `.swipeActions(edge:allowsFullSwipe:actions:)` list-level modifier를 구현합니다.
+- [x] `.swipeActions(edge:allowsFullSwipe:actions:)` section-level modifier를 구현합니다.
+- [x] `.swipeActions(edge:allowsFullSwipe:actions:)` row-level modifier를 구현합니다.
+- [x] `leadingSwipeActionsConfigurationForItemAt`를 연결합니다.
+- [x] `trailingSwipeActionsConfigurationForItemAt`를 연결합니다.
+- [x] row, section, list handler 우선순위를 구현합니다.
+- [x] `allowsFullSwipe`, action style, title, image, background color를 UIKit configuration으로 전달합니다.
+- [x] README에 swipe action 사용 예시를 문서화합니다.
+
+완료 기준:
+
+- [x] swipe action API 저장 테스트가 통과합니다.
+- [x] collection view delegate routing 테스트가 통과합니다.
 
 ### 17. Environment Values
 
