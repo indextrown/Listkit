@@ -71,6 +71,7 @@ enum ListKitExampleData {
         ExampleMessage(id: 1, title: "Design review", subtitle: "Confirm the new inbox layout"),
         ExampleMessage(id: 2, title: "Build finished", subtitle: "iOS simulator tests passed"),
         ExampleMessage(id: 3, title: "Archived note", subtitle: "Selection is disabled for this row", isArchived: true),
+        ExampleMessage(id: 4, title: "Archived note", subtitle: "Selection is disabled for this row", isArchived: true),
     ]
 
     static let pinned = [
