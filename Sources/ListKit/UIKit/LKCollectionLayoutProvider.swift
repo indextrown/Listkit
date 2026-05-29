@@ -71,6 +71,7 @@ enum LKCollectionLayoutProvider {
         case let .custom(provider):
             layoutSection = provider(sectionIndex, environment)
             applyItemSpacing(model.itemSpacing, to: layoutSection)
+            applyPinnedHeader(model.pinsHeader, to: layoutSection)
             if model.scrollAxis == .horizontal {
                 applyScrollAxis(model.scrollAxis, to: layoutSection)
             }
@@ -197,6 +198,17 @@ enum LKCollectionLayoutProvider {
             section.orthogonalScrollingBehavior = .none
         case .horizontal:
             section.orthogonalScrollingBehavior = .continuous
+        }
+    }
+
+    private static func applyPinnedHeader(
+        _ pinsHeader: Bool,
+        to section: NSCollectionLayoutSection
+    ) {
+        section.boundarySupplementaryItems.forEach { item in
+            if item.elementKind == UICollectionView.elementKindSectionHeader {
+                item.pinToVisibleBounds = pinsHeader
+            }
         }
     }
 

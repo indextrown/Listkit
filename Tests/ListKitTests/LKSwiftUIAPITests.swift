@@ -149,6 +149,22 @@ final class LKSwiftUIAPITests: XCTestCase {
         XCTAssertEqual(list.model.sections[0].layout, .grid(columns: 2, spacing: 8))
     }
 
+    func testCustomSectionLayoutAcceptsFactoryReturnedProvider() {
+        let list = LKList {
+            LKSection(id: "section") {
+                LKRow(id: "item") {
+                    Text("Item")
+                }
+            }
+            .sectionLayout(.custom(Self.horizontalSectionLayout(width: 194, height: 271, spacing: 15)))
+        }
+
+        XCTAssertEqual(
+            list.model.sections[0].layout,
+            .custom(Self.horizontalSectionLayout(width: 194, height: 271, spacing: 15))
+        )
+    }
+
     func testSectionScrollAxisModifierStoresAxisInModel() {
         let verticalList = LKList {
             LKSection(id: "section") {
@@ -457,6 +473,27 @@ final class LKSwiftUIAPITests: XCTestCase {
 
         _ = view
         XCTAssertEqual(query, "")
+    }
+
+    private static func horizontalSectionLayout(
+        width: CGFloat,
+        height: CGFloat,
+        spacing: CGFloat
+    ) -> LKCustomSectionLayoutProvider {
+        { _, _ in
+            let itemSize = NSCollectionLayoutSize(
+                widthDimension: .absolute(width),
+                heightDimension: .absolute(height)
+            )
+            let item = NSCollectionLayoutItem(layoutSize: itemSize)
+            let group = NSCollectionLayoutGroup.horizontal(
+                layoutSize: itemSize,
+                subitems: [item]
+            )
+            let section = NSCollectionLayoutSection(group: group)
+            section.interGroupSpacing = spacing
+            return section
+        }
     }
     #endif
 }

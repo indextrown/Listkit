@@ -18,6 +18,7 @@
 - [주요 API](#주요-api)
 - [Identity와 Equality](#identity와-equality)
 - [Update Engine](#update-engine)
+- [Section Layout](#section-layout)
 - [Refresh와 Search](#refresh와-search)
 - [Context Menu](#context-menu)
 - [Swipe Actions](#swipe-actions)
@@ -253,6 +254,30 @@ LKList(messages, id: \.id) { message in
 | `.differenceKit` | 기본 staged changeset 엔진과 explicit content equality가 필요한 화면 | DifferenceKit 의존성이 필요합니다. |
 
 diff 경로가 안전하게 업데이트를 적용할 수 없으면 ListKit은 더 안전한 reload 경로로 fallback할 수 있습니다.
+
+## Section Layout
+
+특정 section만 기본 list style과 다른 layout을 써야 하면 `LKSection`에 `.sectionLayout(...)`을 붙입니다.
+
+```swift
+LKSection(id: "featured") {
+    for item in featuredItems {
+        LKRow(item, id: \.id) {
+            FeaturedRow(item: item)
+        }
+    }
+} header: {
+    Text("Featured")
+}
+.sectionLayout(.custom { sectionIndex, environment in
+    makeFeaturedSection(sectionIndex: sectionIndex, environment: environment)
+})
+.pinnedHeader()
+```
+
+`.list`, `.grid`, `.custom` layout 모두에서 `.pinnedHeader()`는 header boundary supplementary item의 `pinToVisibleBounds`에 반영됩니다. `.custom`에서는 provider가 만든 header의 size, alignment, contentInsets는 유지하고 header boundary item의 `pinToVisibleBounds`만 바꿉니다. footer boundary item에는 `.pinnedHeader()`를 적용하지 않습니다.
+
+custom layout helper를 함수로 분리할 때는 `LKCustomSectionLayoutProvider`를 반환해서 `.custom(...)`에 전달하면 됩니다.
 
 ## Refresh와 Search
 

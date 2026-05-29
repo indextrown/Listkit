@@ -426,3 +426,57 @@ make benchmark CONFIGURATION=Release
 ```
 
 `Benchmarks/results/benchmark-config.json`에도 configuration을 기록합니다. simulator Debug/UI test 수치는 회귀 비교용이고, 최종 성능 판단은 device Release 측정으로 보는 것을 권장합니다.
+
+## Custom layout 이슈 정리
+
+### 1. `.pinnedHeader()`가 custom section header에 반영되지 않던 문제
+
+문제:
+
+`.sectionLayout(.custom(...))` 경로는 provider가 반환한 `NSCollectionLayoutSection`을 그대로 반환했습니다. `.pinnedHeader()`는 `LKSectionModel.pinsHeader`만 바꾸고, custom provider가 만든 header boundary supplementary item의 `pinToVisibleBounds`에는 반영되지 않았습니다.
+
+해결방법:
+
+`LKCollectionLayoutProvider.makeSection(_:sectionIndex:model:environment:)`의 `.custom` 분기에서 provider가 만든 section의 `boundarySupplementaryItems`를 순회합니다. `elementKind == UICollectionView.elementKindSectionHeader`인 item에만 `pinToVisibleBounds = model.pinsHeader`를 적용합니다.
+
+정책:
+
+- header boundary item에만 pin 값을 반영합니다.
+- footer boundary item은 변경하지 않습니다.
+- custom provider가 만든 header size, alignment, contentInsets는 유지합니다.
+- custom provider가 header를 만들지 않은 경우 ListKit이 기본 header를 자동 추가하지 않습니다.
+
+### 2. custom layout helper 사용 시 Swift concurrency warning이 나던 문제
+
+문제:
+
+앱에서 아래처럼 custom layout provider를 helper 함수로 만들어 전달할 때 Swift 6 strict concurrency 경고가 날 수 있었습니다.
+
+```swift
+.sectionLayout(.custom(Self.horizontalSectionLayout(width: 194, height: 271, spacing: 15)))
+```
+
+경고:
+
+```text
+Converting non-Sendable function value to '@MainActor @Sendable (Int, any NSCollectionLayoutEnvironment) -> NSCollectionLayoutSection' may introduce data races
+```
+
+원인은 `LKSectionLayout.custom` associated value가 `@MainActor` closure를 직접 요구해서, 앱의 plain function value가 더 강한 actor/sendability 요구를 가진 함수 타입으로 변환되기 때문입니다.
+
+해결방법:
+
+custom provider 저장 타입을 별도 public typealias로 분리하고, associated value에서는 plain provider를 받습니다.
+
+```swift
+public typealias LKCustomSectionLayoutProvider = (
+    Int,
+    NSCollectionLayoutEnvironment
+) -> NSCollectionLayoutSection
+
+public enum LKSectionLayout {
+    case custom(LKCustomSectionLayoutProvider)
+}
+```
+
+ListKit의 layout 생성 경로인 `LKCollectionLayoutProvider`는 `@MainActor`에 남아 있으므로 UIKit compositional layout section 생성은 기존처럼 main actor에서 수행됩니다. public API에서는 앱 helper 함수가 불필요하게 `@MainActor @Sendable` 함수 타입으로 변환되지 않게 합니다.

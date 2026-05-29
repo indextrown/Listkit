@@ -19,6 +19,7 @@ The project goal is to keep SwiftUI-style list declaration while exposing the co
 - [Delegate Hooks](#delegate-hooks)
 - [Identity And Equality](#identity-and-equality)
 - [Update Engines](#update-engines)
+- [Section Layouts](#section-layouts)
 - [Selection And Primary Action](#selection-and-primary-action)
 - [Dynamic Height And Self-Sizing](#dynamic-height-and-self-sizing)
 - [Refresh And Search](#refresh-and-search)
@@ -278,6 +279,30 @@ LKList(messages, id: \.id) { message in
 | `.differenceKit` | Default staged changeset engine with explicit content equality | Uses DifferenceKit and relies on stable identity plus useful equality tokens |
 
 If a diff path cannot safely apply an update, ListKit falls back to a safer reload path and can emit a diagnostics warning when diagnostics are enabled.
+
+## Section Layouts
+
+Use `.sectionLayout(...)` on `LKSection` when one section needs a layout different from the list default.
+
+```swift
+LKSection(id: "featured") {
+    for item in featuredItems {
+        LKRow(item, id: \.id) {
+            FeaturedRow(item: item)
+        }
+    }
+} header: {
+    Text("Featured")
+}
+.sectionLayout(.custom { sectionIndex, environment in
+    makeFeaturedSection(sectionIndex: sectionIndex, environment: environment)
+})
+.pinnedHeader()
+```
+
+For `.list`, `.grid`, and `.custom` layouts, `.pinnedHeader()` maps to the header boundary supplementary item's `pinToVisibleBounds`. With `.custom`, ListKit preserves the provider's header size, alignment, and content insets, and only updates `pinToVisibleBounds` for header boundary items. Footer boundary items are not pinned by `.pinnedHeader()`.
+
+When extracting a custom layout helper, return `LKCustomSectionLayoutProvider` and pass it to `.custom(...)`.
 
 ## Selection And Primary Action
 

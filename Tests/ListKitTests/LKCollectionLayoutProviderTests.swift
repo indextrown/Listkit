@@ -49,6 +49,89 @@ final class LKCollectionLayoutProviderTests: XCTestCase {
         XCTAssertTrue(didCallProvider)
     }
 
+    func testCustomLayoutPinnedHeaderAppliesToProviderHeaderBoundaryItem() {
+        var customHeader: NSCollectionLayoutBoundarySupplementaryItem?
+        var customFooter: NSCollectionLayoutBoundarySupplementaryItem?
+        var section = makeModel().sections[0]
+        section.pinsHeader = true
+        section.layout = .custom { _, _ in
+            let layoutSection = Self.makeSingleItemLayoutSection()
+            let header = Self.makeBoundaryItem(
+                kind: UICollectionView.elementKindSectionHeader,
+                alignment: .top
+            )
+            let footer = Self.makeBoundaryItem(
+                kind: UICollectionView.elementKindSectionFooter,
+                alignment: .bottom
+            )
+            footer.pinToVisibleBounds = true
+            layoutSection.boundarySupplementaryItems = [header, footer]
+            customHeader = header
+            customFooter = footer
+            return layoutSection
+        }
+        let model = LKListModel(sections: [section])
+        let fixture = makeCollectionView(model: model, style: .plain)
+
+        fixture.collectionView.layoutIfNeeded()
+
+        XCTAssertEqual(customHeader?.pinToVisibleBounds, true)
+        XCTAssertEqual(customHeader?.contentInsets.top, 1)
+        XCTAssertEqual(customHeader?.contentInsets.leading, 2)
+        XCTAssertEqual(customHeader?.contentInsets.bottom, 3)
+        XCTAssertEqual(customHeader?.contentInsets.trailing, 4)
+        XCTAssertEqual(customFooter?.pinToVisibleBounds, true)
+    }
+
+    func testCustomLayoutUnpinnedHeaderAppliesToProviderHeaderBoundaryItem() {
+        var customHeader: NSCollectionLayoutBoundarySupplementaryItem?
+        var customFooter: NSCollectionLayoutBoundarySupplementaryItem?
+        var section = makeModel().sections[0]
+        section.pinsHeader = false
+        section.layout = .custom { _, _ in
+            let layoutSection = Self.makeSingleItemLayoutSection()
+            let header = Self.makeBoundaryItem(
+                kind: UICollectionView.elementKindSectionHeader,
+                alignment: .top
+            )
+            let footer = Self.makeBoundaryItem(
+                kind: UICollectionView.elementKindSectionFooter,
+                alignment: .bottom
+            )
+            header.pinToVisibleBounds = true
+            footer.pinToVisibleBounds = true
+            layoutSection.boundarySupplementaryItems = [header, footer]
+            customHeader = header
+            customFooter = footer
+            return layoutSection
+        }
+        let model = LKListModel(sections: [section])
+        let fixture = makeCollectionView(model: model, style: .plain)
+
+        fixture.collectionView.layoutIfNeeded()
+
+        XCTAssertEqual(customHeader?.pinToVisibleBounds, false)
+        XCTAssertEqual(customHeader?.contentInsets.top, 1)
+        XCTAssertEqual(customHeader?.contentInsets.leading, 2)
+        XCTAssertEqual(customHeader?.contentInsets.bottom, 3)
+        XCTAssertEqual(customHeader?.contentInsets.trailing, 4)
+        XCTAssertEqual(customFooter?.pinToVisibleBounds, true)
+    }
+
+    func testPinnedHeaderListAndGridLayoutsCreateDisplayableCollectionViewLayouts() {
+        for layout in [LKSectionLayout.list(appearance: .plain), .grid(columns: 2, spacing: 8)] {
+            var section = makeModel().sections[0]
+            section.layout = layout
+            section.pinsHeader = true
+            let model = LKListModel(sections: [section])
+            let fixture = makeCollectionView(model: model, style: .plain)
+
+            fixture.collectionView.layoutIfNeeded()
+
+            XCTAssertTrue(fixture.collectionView.collectionViewLayout is UICollectionViewCompositionalLayout)
+        }
+    }
+
     func testLayoutSignatureChangesWhenSectionLayoutChanges() {
         let originalModel = makeModel()
         var changedSection = originalModel.sections[0]
@@ -111,6 +194,45 @@ final class LKCollectionLayoutProviderTests: XCTestCase {
         let adapter = LKCollectionViewAdapter(collectionView: collectionView, model: model)
         collectionView.reloadData()
         return (collectionView, adapter)
+    }
+
+    private static func makeSingleItemLayoutSection() -> NSCollectionLayoutSection {
+        let itemSize = NSCollectionLayoutSize(
+            widthDimension: .fractionalWidth(1),
+            heightDimension: .estimated(44)
+        )
+        let item = NSCollectionLayoutItem(layoutSize: itemSize)
+        let groupSize = NSCollectionLayoutSize(
+            widthDimension: .fractionalWidth(1),
+            heightDimension: .estimated(44)
+        )
+        let group = NSCollectionLayoutGroup.vertical(
+            layoutSize: groupSize,
+            subitems: [item]
+        )
+        return NSCollectionLayoutSection(group: group)
+    }
+
+    private static func makeBoundaryItem(
+        kind: String,
+        alignment: NSRectAlignment
+    ) -> NSCollectionLayoutBoundarySupplementaryItem {
+        let size = NSCollectionLayoutSize(
+            widthDimension: .fractionalWidth(1),
+            heightDimension: .absolute(44)
+        )
+        let item = NSCollectionLayoutBoundarySupplementaryItem(
+            layoutSize: size,
+            elementKind: kind,
+            alignment: alignment
+        )
+        item.contentInsets = NSDirectionalEdgeInsets(
+            top: 1,
+            leading: 2,
+            bottom: 3,
+            trailing: 4
+        )
+        return item
     }
 
     private func makeModel() -> LKListModel {

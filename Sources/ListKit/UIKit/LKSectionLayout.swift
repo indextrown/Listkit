@@ -1,10 +1,15 @@
 #if canImport(UIKit)
 import UIKit
 
+public typealias LKCustomSectionLayoutProvider = (
+    Int,
+    NSCollectionLayoutEnvironment
+) -> NSCollectionLayoutSection
+
 public enum LKSectionLayout {
     case list(appearance: UICollectionLayoutListConfiguration.Appearance)
     case grid(columns: Int, spacing: CGFloat)
-    case custom(@MainActor (Int, NSCollectionLayoutEnvironment) -> NSCollectionLayoutSection)
+    case custom(LKCustomSectionLayoutProvider)
 }
 
 public enum LKSectionScrollAxis: Hashable, Sendable {
