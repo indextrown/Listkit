@@ -70,7 +70,6 @@ struct InboxView: View {
         LKList(messages, id: \.id) { message in
             MessageRow(message: message)
         }
-        .listKitStyle(.plain)
         .onSelect { context in
             print("Selected", context.id)
         }
@@ -83,7 +82,7 @@ struct InboxView: View {
         .refreshable {
             await reload()
         }
-        .updateEngine(.diffableDataSource)
+        .listKitStyle(.plain)
     }
 
     private func reload() async {}
@@ -239,7 +238,7 @@ Avoid storing `IndexPath` for later asynchronous use. Delegate contexts include 
 
 ## Update Engines
 
-Choose an update engine per list:
+ListKit uses `.differenceKit` by default. Choose another update engine per list when needed:
 
 ```swift
 LKList(messages, id: \.id) { message in
@@ -251,8 +250,8 @@ LKList(messages, id: \.id) { message in
 | Engine | Use when | Notes |
 | --- | --- | --- |
 | `.reloadData` | Debugging, simplest behavior, or when animation is unnecessary | Least sensitive to identity mistakes, but no fine-grained animations |
-| `.diffableDataSource` | Default choice for Apple-native diffing | Good fit for stable section and item IDs; content-only changes use reload/reconfigure policy |
-| `.differenceKit` | You need staged changesets and explicit content equality | Uses DifferenceKit and relies on stable identity plus useful equality tokens |
+| `.diffableDataSource` | You need Apple-native diffing | Good fit for stable section and item IDs; content-only changes use reload/reconfigure policy |
+| `.differenceKit` | Default staged changeset engine with explicit content equality | Uses DifferenceKit and relies on stable identity plus useful equality tokens |
 
 If a diff path cannot safely apply an update, ListKit falls back to a safer reload path and can emit a diagnostics warning when diagnostics are enabled.
 
@@ -401,7 +400,7 @@ In debug builds, invalid model identity such as duplicate section or item IDs st
 - Use stable IDs. Changing IDs forces removal and insertion instead of an in-place update.
 - Add `.equatableToken(...)` for content or size changes that should trigger reconfiguration.
 - Start image or video work from `.onWillDisplay`, cancel or pause it from `.onDidEndDisplaying`, and use `.onPrefetch` for near-future work.
-- Use `.diffableDataSource` for most animated updates; use `.reloadData` to isolate whether an issue is diffing-related.
+- Use the default `.differenceKit` for most animated updates; use `.reloadData` to isolate whether an issue is diffing-related.
 - Enable `.listKitDiagnostics(.enabled)` while debugging invalid lookups, unsupported layout values, or diff fallbacks.
 - Keep row bodies lightweight. Heavy work should live outside the SwiftUI row body and be keyed by item ID.
 

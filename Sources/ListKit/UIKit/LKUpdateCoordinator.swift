@@ -6,7 +6,7 @@ final class LKUpdateCoordinator {
     let engine: LKUpdateEngine
     var focusRestorationHandler: (() -> Void)?
 
-    init(engine: LKUpdateEngine = .reloadData) {
+    init(engine: LKUpdateEngine = .differenceKit) {
         self.engine = engine
     }
 

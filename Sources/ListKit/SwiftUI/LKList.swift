@@ -66,7 +66,7 @@ public struct LKList<Content: View>: View {
         self.sections = []
         #if canImport(UIKit)
         self.style = .plain
-        self.updateEngine = .reloadData
+        self.updateEngine = .differenceKit
         #endif
     }
 
@@ -81,7 +81,7 @@ public struct LKList<Content: View>: View {
         self.diagnosticsMode = .disabled
         #if canImport(UIKit)
         self.style = .plain
-        self.updateEngine = .reloadData
+        self.updateEngine = .differenceKit
         #endif
     }
 

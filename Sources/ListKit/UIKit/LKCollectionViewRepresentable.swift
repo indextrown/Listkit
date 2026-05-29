@@ -20,7 +20,7 @@ struct LKCollectionViewRepresentable: UIViewRepresentable {
         refreshConfiguration: LKRefreshConfiguration = LKRefreshConfiguration(),
         diagnosticsMode: LKListKitDiagnosticsMode = .disabled,
         style: LKListStyle = .plain,
-        updateEngine: LKUpdateEngine = .reloadData
+        updateEngine: LKUpdateEngine = .differenceKit
     ) {
         self.model = model
         self.listEvents = listEvents

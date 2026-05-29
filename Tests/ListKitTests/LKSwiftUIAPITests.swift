@@ -28,6 +28,26 @@ final class LKSwiftUIAPITests: XCTestCase {
         XCTAssertEqual(list.model.sections[0].items.map(\.id), [AnyHashable(1), AnyHashable(2)])
     }
 
+    #if canImport(UIKit)
+    func testListDefaultsToDifferenceKitUpdateEngine() {
+        let dataList = LKList([Message(id: 1, title: "First")], id: \.id) { message in
+            Text(message.title)
+        }
+
+        let builderList = LKList {
+            LKSection(id: "section") {
+                let message = Message(id: 1, title: "First")
+                LKRow(message, id: \.id) {
+                    Text(message.title)
+                }
+            }
+        }
+
+        XCTAssertEqual(dataList.updateEngine, .differenceKit)
+        XCTAssertEqual(builderList.updateEngine, .differenceKit)
+    }
+    #endif
+
     func testSectionDSLBuildsModelWithRowsHeaderAndFooter() {
         let messages = [
             Message(id: 1, title: "First"),

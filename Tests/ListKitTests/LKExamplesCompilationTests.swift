@@ -62,7 +62,6 @@ final class LKExamplesCompilationTests: XCTestCase {
             LKList(messages, id: \.id) { message in
                 ReadmeMessageRow(message: message)
             }
-            .listKitStyle(.plain)
             .onSelect { context in
                 print("Selected", context.id)
             }
@@ -75,7 +74,7 @@ final class LKExamplesCompilationTests: XCTestCase {
             .refreshable {
                 await reload()
             }
-            .updateEngine(.diffableDataSource)
+            .listKitStyle(.plain)
         }
 
         private func reload() async {}
@@ -188,7 +187,7 @@ final class LKExamplesCompilationTests: XCTestCase {
         .refreshable {
             await Task.yield()
         }
-        .updateEngine(.diffableDataSource)
+        .updateEngine(.differenceKit)
 
         XCTAssertEqual(list.selectionConfiguration.mode, .multiple)
         XCTAssertNotNil(list.events.shouldSelect)
@@ -196,7 +195,7 @@ final class LKExamplesCompilationTests: XCTestCase {
         XCTAssertNotNil(list.events.willDisplay)
         XCTAssertNotNil(list.events.didEndDisplaying)
         XCTAssertNotNil(list.refreshConfiguration.action)
-        XCTAssertEqual(list.updateEngine, .diffableDataSource)
+        XCTAssertEqual(list.updateEngine, .differenceKit)
     }
 
     func testGridDifferenceKitAndLargeDataExamplesStoreConfiguration() {

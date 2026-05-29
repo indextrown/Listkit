@@ -131,7 +131,7 @@ final class LKCollectionViewAdapter: NSObject {
         scrollConfiguration: LKScrollConfiguration = LKScrollConfiguration(),
         refreshConfiguration: LKRefreshConfiguration = LKRefreshConfiguration(),
         diagnosticsMode: LKListKitDiagnosticsMode = .disabled,
-        updateEngine: LKUpdateEngine = .reloadData
+        updateEngine: LKUpdateEngine = .differenceKit
     ) {
         self.collectionView = collectionView
         self.currentModel = model

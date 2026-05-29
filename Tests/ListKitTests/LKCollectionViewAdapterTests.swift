@@ -44,7 +44,7 @@ final class LKCollectionViewAdapterTests: XCTestCase {
 
     func testIdenticalModelApplyDoesNotReloadDataAgain() {
         let collectionView = makeCollectionView()
-        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView, updateEngine: .reloadData)
         let model = makeModel()
         var reloadCount = 0
 
@@ -60,7 +60,7 @@ final class LKCollectionViewAdapterTests: XCTestCase {
 
     func testQueuedUpdateKeepsLastUpdateWhileApplyIsRunning() {
         let collectionView = makeCollectionView()
-        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView, updateEngine: .reloadData)
         let first = makeModel(sectionID: "first", itemID: "first-item")
         let second = makeModel(sectionID: "second", itemID: "second-item")
         let third = makeModel(sectionID: "third", itemID: "third-item")
@@ -93,7 +93,7 @@ final class LKCollectionViewAdapterTests: XCTestCase {
 
     func testReloadDataApplyReflectsAppendRemoveAndUpdate() {
         let collectionView = makeCollectionView()
-        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView, updateEngine: .reloadData)
         let oneItem = LKListModel(
             sections: [
                 LKSectionModel(id: "section", items: [LKItemModel(id: "one")]),
@@ -121,7 +121,7 @@ final class LKCollectionViewAdapterTests: XCTestCase {
 
     func testReloadDataRegistersReuseIdentifiersBeforeReload() {
         let collectionView = makeCollectionView()
-        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView, updateEngine: .reloadData)
         let item = LKItemModel(id: "item", reuseIdentifier: "custom-cell")
         let model = LKListModel(sections: [LKSectionModel(id: "section", items: [item])])
         var didRegisterBeforeReload = false
@@ -142,7 +142,7 @@ final class LKCollectionViewAdapterTests: XCTestCase {
 
     func testReloadDataDequeuedCellUsesLatestModelAfterUpdate() {
         let collectionView = makeCollectionView()
-        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView, updateEngine: .reloadData)
         let first = LKListModel(
             sections: [
                 LKSectionModel(id: "section", items: [LKItemModel(id: "first")]),
@@ -189,7 +189,7 @@ final class LKCollectionViewAdapterTests: XCTestCase {
     func testReloadDataRestoresSelectionByItemIdentity() {
         let collectionView = makeCollectionView()
         collectionView.allowsSelection = true
-        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView, updateEngine: .reloadData)
         let original = LKListModel(
             sections: [
                 LKSectionModel(id: "section", items: [
@@ -222,7 +222,7 @@ final class LKCollectionViewAdapterTests: XCTestCase {
 
     func testReloadDataCallsFocusRestorationHook() {
         let collectionView = makeCollectionView()
-        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView, updateEngine: .reloadData)
         let model = makeModel()
         var didCallFocusHook = false
 
