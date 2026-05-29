@@ -11,6 +11,7 @@
 - [빠른 시작](#빠른-시작)
 - [현재 상태](#현재-상태)
 - [요구 사항](#요구-사항)
+- [설치](#설치)
 - [테스트](#테스트)
 - [SwiftUI List와의 차이](#swiftui-list와의-차이)
 - [AnyView 없는 SwiftUI Hosting](#anyview-없는-swiftui-hosting)
@@ -82,10 +83,33 @@ struct InboxView: View {
 
 ## 요구 사항
 
-- Swift 6.3
+- Swift 6.1
 - iOS 16.0+
 - Swift Package Manager
 - `.differenceKit` update engine을 위해 DifferenceKit 1.3.0을 직접 의존성으로 사용합니다.
+
+## 설치
+
+Swift Package Manager 의존성에 ListKit을 추가합니다.
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/indextrown/Listkit.git", from: "1.0.0")
+]
+```
+
+그리고 앱 target에 product를 연결합니다.
+
+```swift
+.target(
+    name: "YourApp",
+    dependencies: [
+        .product(name: "ListKit", package: "Listkit")
+    ]
+)
+```
+
+Xcode에서는 **File > Add Package Dependencies...**를 열고 `https://github.com/indextrown/Listkit.git`를 입력하면 됩니다.
 
 ## 테스트
 

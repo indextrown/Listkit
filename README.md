@@ -11,6 +11,7 @@ The project goal is to keep SwiftUI-style list declaration while exposing the co
 - [Quick Start](#quick-start)
 - [Current Status](#current-status)
 - [Requirements](#requirements)
+- [Installation](#installation)
 - [Test](#test)
 - [Release Status](#release-status)
 - [How ListKit Differs From SwiftUI List](#how-listkit-differs-from-swiftui-list)
@@ -97,10 +98,33 @@ Implementation is tracked in [AGENTS.md](./AGENTS.md). The first milestone estab
 
 ## Requirements
 
-- Swift 6.3
+- Swift 6.1
 - iOS 16.0+
 - Swift Package Manager
 - DifferenceKit 1.3.0 is currently a direct package dependency for the `.differenceKit` update engine.
+
+## Installation
+
+Add ListKit to your Swift Package Manager dependencies:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/indextrown/Listkit.git", from: "1.0.0")
+]
+```
+
+Then add the product to your target:
+
+```swift
+.target(
+    name: "YourApp",
+    dependencies: [
+        .product(name: "ListKit", package: "Listkit")
+    ]
+)
+```
+
+In Xcode, use **File > Add Package Dependencies...** and enter `https://github.com/indextrown/Listkit.git`.
 
 ## Test
 
