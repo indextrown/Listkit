@@ -546,6 +546,8 @@ LKSection(id: "best") {
 정책:
 
 - 배경색은 supplementary reusable view와 hosted SwiftUI root view 양쪽에 적용합니다.
+- supplementary view frame이 section contentInsets 안쪽에 잡히는 custom layout에서도 full-bleed background layer를 collection view 폭까지 확장합니다.
+- header content는 기존 supplementary view frame 안에 유지하므로 텍스트와 버튼 정렬은 section contentInsets 기준에서 바뀌지 않습니다.
 - custom compositional layout provider가 직접 만든 header boundary item에도 동작합니다.
 - header layout size, alignment, contentInsets는 custom provider가 만든 값을 유지합니다.
 - 기본값은 `nil`이므로 기존 header의 투명 배경 동작은 명시적으로 배경을 지정하지 않는 한 바뀌지 않습니다.

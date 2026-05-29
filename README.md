@@ -306,7 +306,7 @@ For `.list`, `.grid`, and `.custom` layouts, `.pinnedHeader()` maps to the heade
 
 When extracting a custom layout helper, return `LKCustomSectionLayoutProvider` and pass it to `.custom(...)`.
 
-Use `.headerBackground(...)` with pinned headers when the supplementary container should cover content scrolling underneath it. The color is applied to the collection reusable view and the hosted root view, not only to the SwiftUI header content.
+Use `.headerBackground(...)` with pinned headers when the supplementary container should cover content scrolling underneath it. The color is applied to the collection reusable view, the hosted root view, and a full-bleed background layer that spans the collection view width while keeping the header content aligned to its existing layout frame.
 
 ## Selection And Primary Action
 

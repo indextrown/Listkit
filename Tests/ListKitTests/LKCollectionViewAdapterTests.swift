@@ -1408,8 +1408,29 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         XCTAssertNotNil(footerView?.hostedContentView)
         XCTAssertEqual(headerView?.backgroundColor, .systemBackground)
         XCTAssertEqual(headerView?.hostedContentView?.backgroundColor, .systemBackground)
+        XCTAssertEqual(headerView?.fullBleedBackgroundView?.backgroundColor, .systemBackground)
         XCTAssertTrue(headerView?.isOpaque == true)
         XCTAssertNil(footerView?.backgroundColor)
+        XCTAssertNil(footerView?.fullBleedBackgroundView)
+    }
+
+    func testSupplementaryHeaderBackgroundExtendsToCollectionViewWidthWithoutMovingHostedContent() {
+        let collectionView = makeCollectionView()
+        let supplementaryView = LKHostingSupplementaryView(
+            frame: CGRect(x: 20, y: 0, width: 280, height: 44)
+        )
+        collectionView.addSubview(supplementaryView)
+        var header = LKSupplementaryModel(id: "header", kind: .header) {
+            AnyView(Text("Header"))
+        }
+        header.backgroundColor = .systemBackground
+
+        supplementaryView.render(supplementary: header)
+        supplementaryView.layoutIfNeeded()
+
+        XCTAssertEqual(supplementaryView.hostedContentView?.frame, supplementaryView.bounds)
+        XCTAssertEqual(supplementaryView.fullBleedBackgroundView?.frame.minX, -20)
+        XCTAssertEqual(supplementaryView.fullBleedBackgroundView?.frame.width, collectionView.bounds.width)
     }
 
     func testCellConfigurationStateIsRenderedIntoSwiftUIEnvironmentState() {

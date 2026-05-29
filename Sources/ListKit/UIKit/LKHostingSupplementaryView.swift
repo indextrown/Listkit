@@ -5,6 +5,7 @@ import SwiftUI
 final class LKHostingSupplementaryView: UICollectionReusableView {
     private(set) var renderedSupplementaryID: AnyHashable?
     private(set) var hostedContentView: UIView?
+    private(set) var fullBleedBackgroundView: UIView?
     private(set) var renderedState = LKCellState.inactive
     private var onSizeChange: ((CGSize) -> Void)?
 
@@ -39,9 +40,61 @@ final class LKHostingSupplementaryView: UICollectionReusableView {
         hostedContentView = contentView
     }
 
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        layoutFullBleedBackgroundView()
+    }
+
     private func applyBackgroundColor(_ backgroundColor: UIColor?) {
         self.backgroundColor = backgroundColor
         isOpaque = (backgroundColor?.cgColor.alpha ?? 0) >= 1
+
+        guard let backgroundColor else {
+            fullBleedBackgroundView?.removeFromSuperview()
+            fullBleedBackgroundView = nil
+            return
+        }
+
+        let backgroundView = fullBleedBackgroundView ?? UIView()
+        backgroundView.backgroundColor = backgroundColor
+        backgroundView.isOpaque = isOpaque
+        backgroundView.isUserInteractionEnabled = false
+        if backgroundView.superview == nil {
+            insertSubview(backgroundView, at: 0)
+        }
+        clipsToBounds = false
+        fullBleedBackgroundView = backgroundView
+        setNeedsLayout()
+    }
+
+    private func layoutFullBleedBackgroundView() {
+        guard let fullBleedBackgroundView else {
+            return
+        }
+
+        guard let collectionView = nearestCollectionView() else {
+            fullBleedBackgroundView.frame = bounds
+            return
+        }
+
+        let frameInCollectionView = convert(bounds, to: collectionView)
+        fullBleedBackgroundView.frame = CGRect(
+            x: -frameInCollectionView.minX,
+            y: 0,
+            width: collectionView.bounds.width,
+            height: bounds.height
+        )
+    }
+
+    private func nearestCollectionView() -> UICollectionView? {
+        var candidate = superview
+        while let view = candidate {
+            if let collectionView = view as? UICollectionView {
+                return collectionView
+            }
+            candidate = view.superview
+        }
+        return nil
     }
 
     override func preferredLayoutAttributesFitting(

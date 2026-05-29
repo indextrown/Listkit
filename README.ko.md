@@ -281,7 +281,7 @@ LKSection(id: "featured") {
 
 custom layout helper를 함수로 분리할 때는 `LKCustomSectionLayoutProvider`를 반환해서 `.custom(...)`에 전달하면 됩니다.
 
-pinned header 뒤로 아래 content가 비치면 `.headerBackground(...)`를 함께 사용합니다. 이 색상은 SwiftUI header content뿐 아니라 collection reusable view와 hosted root view에도 적용됩니다.
+pinned header 뒤로 아래 content가 비치면 `.headerBackground(...)`를 함께 사용합니다. 이 색상은 SwiftUI header content뿐 아니라 collection reusable view, hosted root view, collection view 폭을 덮는 full-bleed background layer에도 적용됩니다. header content 정렬은 기존 layout frame 기준을 유지합니다.
 
 ## 프로그래밍 방식 스크롤
 
