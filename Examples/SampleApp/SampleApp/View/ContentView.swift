@@ -82,6 +82,13 @@ struct ContentView: View {
                 }
 
                 ExampleNavigationRow(
+                    title: "Horizontal Paging",
+                    subtitle: "Every built-in orthogonal scrolling behavior."
+                ) {
+                    HorizontalPagingExample()
+                }
+
+                ExampleNavigationRow(
                     title: "Diffable Engine",
                     subtitle: "UICollectionViewDiffableDataSource update engine."
                 ) {

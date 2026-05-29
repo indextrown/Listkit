@@ -283,6 +283,25 @@ custom layout helper를 함수로 분리할 때는 `LKCustomSectionLayoutProvide
 
 pinned header 뒤로 아래 content가 비치면 `.headerBackground(...)`를 함께 사용합니다. 이 색상은 SwiftUI header content뿐 아니라 collection reusable view, hosted root view, collection view 폭을 덮는 full-bleed background layer에도 적용됩니다. header content 정렬은 기존 layout frame 기준을 유지합니다.
 
+가로 carousel section에서는 `.orthogonalScrollingBehavior(...)`로 compositional layout의 기본 orthogonal scrolling 동작을 지정할 수 있습니다. 기본값은 `.continuous`이고, 스와이프 후 다음 카드가 가운데에 맞게 멈춰야 하면 `.groupPagingCentered`를 사용합니다.
+
+```swift
+LKSection(id: "featured") {
+    for item in featuredItems {
+        LKRow(item, id: \.id) {
+            FeaturedCard(item: item)
+                .frame(width: 220)
+        }
+    }
+}
+.sectionLayout(.horizontal(width: 300))
+.scrollAxis(.horizontal)
+.orthogonalScrollingBehavior(.groupPagingCentered)
+.itemSpacing(12)
+```
+
+paging 계열 동작은 group width가 안정적이어야 자연스럽게 동작합니다. estimated self-sizing width에만 맡기지 말고 `.sectionLayout(.horizontal(width: ...))`와 함께 쓰는 것을 권장합니다.
+
 ## 프로그래밍 방식 스크롤
 
 SwiftUI 부모 view에서 list 스크롤을 제어해야 하면 UIKit view tree를 직접 탐색하지 말고 `LKListProxy`를 사용합니다.
@@ -452,7 +471,8 @@ LKList(messages, id: \.id) { message in
 | Prefetch | [PrefetchExample.swift](./Examples/SampleApp/SampleApp/View/PrefetchExample.swift) | `onReachEnd`로 끝에 도달하기 전에 다음 페이지를 append하는 infinite scroll 예제입니다. |
 | Image Prefetch | [ImagePrefetchExample.swift](./Examples/SampleApp/SampleApp/View/ImagePrefetchExample.swift) | `.onPrefetch`, `.onCancelPrefetch` collection view callback으로 이미지 로딩 캐시를 제어합니다. |
 | Context Menu | [ContextMenuExample.swift](./Examples/SampleApp/SampleApp/View/ContextMenuExample.swift) | row content 안에서 SwiftUI context menu를 사용합니다. |
-| Grid Layout | [GridLayoutExample.swift](./Examples/SampleApp/SampleApp/View/GridLayoutExample.swift) | section 단위 `.sectionLayout(.grid(...))` 레이아웃을 보여줍니다. |
+| Grid Layout | [GridLayoutExample.swift](./Examples/SampleApp/SampleApp/View/GridLayoutExample.swift) | section 단위 grid layout과 cell spacing을 보여줍니다. |
+| Horizontal Paging | [HorizontalPagingExample.swift](./Examples/SampleApp/SampleApp/View/HorizontalPagingExample.swift) | 기본 제공 orthogonal scrolling behavior 종류별 가로 section을 보여줍니다. |
 | Diffable Engine | [DiffableEngineExample.swift](./Examples/SampleApp/SampleApp/View/DiffableEngineExample.swift) | Apple `UICollectionViewDiffableDataSource` 업데이트 엔진을 사용합니다. |
 | DifferenceKit Engine | [DifferenceKitEngineExample.swift](./Examples/SampleApp/SampleApp/View/DifferenceKitEngineExample.swift) | DifferenceKit staged update 엔진을 사용합니다. |
 | Shuffle Diffable | [ShuffleDiffableExample.swift](./Examples/SampleApp/SampleApp/View/ShuffleDiffableExample.swift) | 우측 상단 shuffle 버튼으로 diffable engine에서 row 이동을 확인합니다. |

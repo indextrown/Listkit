@@ -4,23 +4,6 @@ import ListKit
 struct GridLayoutExample: View {
     var body: some View {
         LKList {
-            LKSection(id: "featured") {
-                for message in ListKitExampleData.messages.prefix(6) {
-                    LKRow(message, id: \.id) {
-                        ExampleMessageRow(message: message)
-                            .frame(width: 220)
-                    }
-                }
-            } header: {
-                Text("Horizontal section")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 8)
-            }
-            .scrollAxis(.horizontal)
-            .itemSpacing(12)
-            .pinnedHeader()
-
             LKSection(id: "grid") {
                 for message in ListKitExampleData.messages {
                     LKRow(message, id: \.id) {

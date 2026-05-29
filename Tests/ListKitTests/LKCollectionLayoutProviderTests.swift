@@ -29,6 +29,19 @@ final class LKCollectionLayoutProviderTests: XCTestCase {
         XCTAssertTrue(fixture.collectionView.collectionViewLayout is UICollectionViewCompositionalLayout)
     }
 
+    func testSectionHorizontalLayoutCreatesDisplayableCollectionViewLayout() {
+        var section = makeModel().sections[0]
+        section.layout = .horizontal(width: 300)
+        section.scrollAxis = .horizontal
+        section.orthogonalScrollingBehavior = .groupPagingCentered
+        let model = LKListModel(sections: [section])
+        let fixture = makeCollectionView(model: model, style: .plain)
+
+        fixture.collectionView.layoutIfNeeded()
+
+        XCTAssertTrue(fixture.collectionView.collectionViewLayout is UICollectionViewCompositionalLayout)
+    }
+
     func testSectionCustomLayoutProviderIsUsed() {
         var didCallProvider = false
         var section = makeModel().sections[0]
@@ -154,6 +167,37 @@ final class LKCollectionLayoutProviderTests: XCTestCase {
             LKCollectionLayoutProvider.signature(model: originalModel, defaultStyle: .plain),
             LKCollectionLayoutProvider.signature(model: changedModel, defaultStyle: .plain)
         )
+    }
+
+    func testLayoutSignatureChangesWhenSectionOrthogonalScrollingBehaviorChanges() {
+        let originalModel = makeModel()
+        var changedSection = originalModel.sections[0]
+        changedSection.scrollAxis = .horizontal
+        changedSection.orthogonalScrollingBehavior = .groupPagingCentered
+        let changedModel = LKListModel(sections: [changedSection])
+
+        XCTAssertNotEqual(
+            LKCollectionLayoutProvider.signature(model: originalModel, defaultStyle: .plain),
+            LKCollectionLayoutProvider.signature(model: changedModel, defaultStyle: .plain)
+        )
+    }
+
+    func testHorizontalCustomLayoutAppliesOrthogonalScrollingBehavior() {
+        var customSection: NSCollectionLayoutSection?
+        var section = makeModel().sections[0]
+        section.scrollAxis = .horizontal
+        section.orthogonalScrollingBehavior = .groupPagingCentered
+        section.layout = .custom { _, _ in
+            let layoutSection = Self.makeSingleItemLayoutSection()
+            customSection = layoutSection
+            return layoutSection
+        }
+        let model = LKListModel(sections: [section])
+        let fixture = makeCollectionView(model: model, style: .plain)
+
+        fixture.collectionView.layoutIfNeeded()
+
+        XCTAssertEqual(customSection?.orthogonalScrollingBehavior, .groupPagingCentered)
     }
 
     func testLayoutSignatureChangesWhenSectionItemSpacingChanges() {

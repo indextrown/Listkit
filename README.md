@@ -308,6 +308,25 @@ When extracting a custom layout helper, return `LKCustomSectionLayoutProvider` a
 
 Use `.headerBackground(...)` with pinned headers when the supplementary container should cover content scrolling underneath it. The color is applied to the collection reusable view, the hosted root view, and a full-bleed background layer that spans the collection view width while keeping the header content aligned to its existing layout frame.
 
+For horizontal carousel sections, `.orthogonalScrollingBehavior(...)` maps to compositional layout's built-in orthogonal scrolling behavior. The default is `.continuous`; use `.groupPagingCentered` when each swipe should snap the next card into the centered position.
+
+```swift
+LKSection(id: "featured") {
+    for item in featuredItems {
+        LKRow(item, id: \.id) {
+            FeaturedCard(item: item)
+                .frame(width: 220)
+        }
+    }
+}
+.sectionLayout(.horizontal(width: 300))
+.scrollAxis(.horizontal)
+.orthogonalScrollingBehavior(.groupPagingCentered)
+.itemSpacing(12)
+```
+
+Paging-style behaviors work best with a stable group width, so pair them with `.sectionLayout(.horizontal(width: ...))` instead of relying on estimated self-sizing widths.
+
 ## Selection And Primary Action
 
 Selection is state. Primary action is intent.
@@ -552,7 +571,8 @@ The sample app is a compact gallery of ListKit behaviors:
 | Prefetch | [PrefetchExample.swift](./Examples/SampleApp/SampleApp/View/PrefetchExample.swift) | Infinite scrolling with `onReachEnd`, appending the next page before the user reaches the end. |
 | Image Prefetch | [ImagePrefetchExample.swift](./Examples/SampleApp/SampleApp/View/ImagePrefetchExample.swift) | Image loading cache driven by `.onPrefetch` and `.onCancelPrefetch` collection view callbacks. |
 | Context Menu | [ContextMenuExample.swift](./Examples/SampleApp/SampleApp/View/ContextMenuExample.swift) | SwiftUI row-level context menus inside ListKit rows. |
-| Grid Layout | [GridLayoutExample.swift](./Examples/SampleApp/SampleApp/View/GridLayoutExample.swift) | Section-level grid layout, cell spacing, and horizontal section scrolling using `.itemSpacing(...)` and `.scrollAxis(.horizontal)`. |
+| Grid Layout | [GridLayoutExample.swift](./Examples/SampleApp/SampleApp/View/GridLayoutExample.swift) | Section-level grid layout and cell spacing. |
+| Horizontal Paging | [HorizontalPagingExample.swift](./Examples/SampleApp/SampleApp/View/HorizontalPagingExample.swift) | Horizontal sections showing each built-in orthogonal scrolling behavior. |
 | Diffable Engine | [DiffableEngineExample.swift](./Examples/SampleApp/SampleApp/View/DiffableEngineExample.swift) | The Apple `UICollectionViewDiffableDataSource` update engine. |
 | DifferenceKit Engine | [DifferenceKitEngineExample.swift](./Examples/SampleApp/SampleApp/View/DifferenceKitEngineExample.swift) | The DifferenceKit staged update engine. |
 | Shuffle Diffable | [ShuffleDiffableExample.swift](./Examples/SampleApp/SampleApp/View/ShuffleDiffableExample.swift) | Toolbar-driven row shuffling with the diffable update engine. |

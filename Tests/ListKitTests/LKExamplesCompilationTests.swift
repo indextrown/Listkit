@@ -200,17 +200,6 @@ final class LKExamplesCompilationTests: XCTestCase {
 
     func testGridDifferenceKitAndLargeDataExamplesStoreConfiguration() {
         let gridList = LKList {
-            LKSection(id: "featured") {
-                for message in messages.prefix(6) {
-                    LKRow(message, id: \.id) {
-                        ExampleMessageRow(message: message)
-                            .frame(width: 220)
-                    }
-                }
-            }
-            .scrollAxis(.horizontal)
-            .itemSpacing(12)
-
             LKSection(id: "grid") {
                 for message in messages {
                     LKRow(message, id: \.id) {
@@ -235,15 +224,51 @@ final class LKExamplesCompilationTests: XCTestCase {
         }
         .updateEngine(.diffableDataSource)
 
-        XCTAssertNil(gridList.model.sections[0].layout)
-        XCTAssertEqual(gridList.model.sections[0].scrollAxis, .horizontal)
-        XCTAssertEqual(gridList.model.sections[0].itemSpacing, 12)
-        XCTAssertEqual(gridList.model.sections[1].layout, .grid(columns: 2, spacing: 0))
-        XCTAssertEqual(gridList.model.sections[1].scrollAxis, .vertical)
-        XCTAssertEqual(gridList.model.sections[1].itemSpacing, 8)
+        XCTAssertEqual(gridList.model.sections[0].layout, .grid(columns: 2, spacing: 0))
+        XCTAssertEqual(gridList.model.sections[0].scrollAxis, .vertical)
+        XCTAssertEqual(gridList.model.sections[0].itemSpacing, 8)
         XCTAssertEqual(differenceKitList.updateEngine, .differenceKit)
         XCTAssertEqual(largeDataList.model.sections[0].items.count, 1_000)
         XCTAssertEqual(largeDataList.updateEngine, .diffableDataSource)
+    }
+
+    func testHorizontalPagingExampleStoresOrthogonalScrollingBehavior() {
+        let behaviors: [(title: String, description: String, behavior: LKSectionOrthogonalScrollingBehavior)] = [
+            ("None", "가로 스크롤을 사용하지 않고 기본 세로 섹션처럼 배치합니다.", .none),
+            ("Continuous", "멈춤 위치를 보정하지 않고 손가락 속도에 따라 자연스럽게 이어서 스크롤합니다.", .continuous),
+            ("Leading Boundary", "연속 스크롤하되 멈출 때 보이는 그룹의 왼쪽 경계에 맞춥니다.", .continuousGroupLeadingBoundary),
+            ("Paging", "컬렉션뷰 화면 폭을 기준으로 한 페이지씩 넘깁니다.", .paging),
+            ("Group Paging", "레이아웃 그룹 하나를 기준으로 한 칸씩 넘깁니다.", .groupPaging),
+            ("Group Paging Centered", "레이아웃 그룹 하나를 기준으로 넘기고, 멈출 때 그룹을 가운데에 맞춥니다.", .groupPagingCentered),
+        ]
+
+        let list = LKList {
+            for configuration in behaviors {
+                LKSection(id: configuration.title) {
+                    for message in messages {
+                        LKRow("\(configuration.title)-\(message.id)", id: \.self) {
+                            ExampleMessageRow(message: message)
+                        }
+                    }
+                }
+                header: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(configuration.title)
+                        Text(configuration.description)
+                    }
+                }
+                .sectionLayout(.horizontal(width: 300))
+                .scrollAxis(.horizontal)
+                .orthogonalScrollingBehavior(configuration.behavior)
+                .itemSpacing(12)
+            }
+        }
+
+        XCTAssertEqual(list.model.sections.map(\.id), behaviors.map { AnyHashable($0.title) })
+        XCTAssertEqual(list.model.sections.map(\.layout), behaviors.map { _ in .horizontal(width: 300) })
+        XCTAssertEqual(list.model.sections.map(\.scrollAxis), Array(repeating: .horizontal, count: behaviors.count))
+        XCTAssertEqual(list.model.sections.map(\.orthogonalScrollingBehavior), behaviors.map(\.behavior))
+        XCTAssertEqual(list.model.sections.map(\.itemSpacing), Array(repeating: 12, count: behaviors.count))
     }
     #endif
 }

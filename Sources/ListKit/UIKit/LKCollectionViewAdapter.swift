@@ -1387,6 +1387,7 @@ private extension LKSectionModel {
         return coreMatches
             && layout == other.layout
             && scrollAxis == other.scrollAxis
+            && orthogonalScrollingBehavior == other.orthogonalScrollingBehavior
             && itemSpacing == other.itemSpacing
             && pinsHeader == other.pinsHeader
         #else

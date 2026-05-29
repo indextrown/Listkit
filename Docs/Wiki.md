@@ -551,3 +551,76 @@ LKSection(id: "best") {
 - custom compositional layout provider가 직접 만든 header boundary item에도 동작합니다.
 - header layout size, alignment, contentInsets는 custom provider가 만든 값을 유지합니다.
 - 기본값은 `nil`이므로 기존 header의 투명 배경 동작은 명시적으로 배경을 지정하지 않는 한 바뀌지 않습니다.
+
+## Horizontal paging layout 이슈 정리
+
+### 문제
+
+가로 섹션에 `.orthogonalScrollingBehavior(.groupPagingCentered)` 같은 paging 계열 동작을 붙였을 때, 카드가 거의 움직이지 않고 제자리로 돌아오거나 아주 크게 드래그해야 다음 카드로 넘어가는 문제가 있었습니다.
+
+문제가 난 조합:
+
+```swift
+LKSection(id: "featured") {
+    for item in items {
+        LKRow(item, id: \.id) {
+            FeaturedCard(item: item)
+                .frame(width: 260)
+        }
+    }
+}
+.scrollAxis(.horizontal)
+.orthogonalScrollingBehavior(.groupPagingCentered)
+```
+
+이때 SwiftUI row content에는 width가 있지만, collection layout의 group width는 기존 horizontal 기본값인 `.estimated(44)`였습니다. Compositional Layout의 paging 계열은 group/page 경계가 안정적으로 정해져 있어야 하는데, estimated self-sizing group 위에서 paging 기준점이 늦게 확정되면서 스냅 위치가 불안정해졌습니다.
+
+증상:
+
+- 약하게 스와이프하면 다음 카드로 넘어가지 않고 원래 위치로 돌아옵니다.
+- 다음 카드로 넘기려면 과하게 긴 드래그가 필요합니다.
+- `.continuous`에서는 덜 눈에 띄지만 `.paging`, `.groupPaging`, `.groupPagingCentered`에서 문제가 크게 보입니다.
+
+### 해결방법
+
+paging 계열 behavior를 사용할 때는 group width를 명시합니다. ListKit에는 이를 위해 `.sectionLayout(.horizontal(width:height:))`를 추가했습니다.
+
+권장 사용:
+
+```swift
+LKSection(id: "featured") {
+    for item in items {
+        LKRow(item, id: \.id) {
+            FeaturedCard(item: item)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+.sectionLayout(.horizontal(width: 300))
+.scrollAxis(.horizontal)
+.orthogonalScrollingBehavior(.groupPagingCentered)
+.itemSpacing(12)
+```
+
+핵심은 SwiftUI content의 `.frame(width:)`에만 의존하지 않는 것입니다. collection layout group 자체가 `width: 300`을 알아야 UIKit의 paging 계산이 안정적으로 동작합니다.
+
+### Behavior별 사용 가이드
+
+- `.none`: orthogonal scrolling을 끄고 기본 축으로 배치합니다.
+- `.continuous`: estimated width와도 비교적 잘 맞습니다. 자유롭게 이어지는 가로 스크롤에 사용합니다.
+- `.continuousGroupLeadingBoundary`: group의 leading boundary에 맞춰 멈추므로 group width를 명시하는 편이 좋습니다.
+- `.paging`: collection view container 폭 기준으로 넘깁니다.
+- `.groupPaging`: group 하나 기준으로 넘깁니다. group width 명시를 권장합니다.
+- `.groupPagingCentered`: group 하나 기준으로 넘기고 가운데 정렬합니다. group width 명시가 사실상 필수입니다.
+
+### 구현 정책
+
+- 기존 `.scrollAxis(.horizontal)` 기본 동작은 `.continuous` + estimated width를 유지합니다.
+- paging을 안정화해야 하는 화면은 `.sectionLayout(.horizontal(width: ...))`를 명시합니다.
+- `.sectionLayout(.horizontal(width:height:))`는 horizontal group width를 absolute dimension으로 만들고, item width는 group 폭을 채우는 fractional width로 둡니다.
+- height를 생략하면 기존처럼 estimated height를 사용합니다.
+- layout signature에 `orthogonalScrollingBehavior`와 horizontal layout width/height를 포함해 modifier 변경 시 layout이 재생성되도록 합니다.
+
+### 예제
+
+샘플 앱의 `HorizontalPagingExample`은 `.none`, `.continuous`, `.continuousGroupLeadingBoundary`, `.paging`, `.groupPaging`, `.groupPagingCentered`를 섹션별로 보여줍니다. 각 섹션은 같은 row content를 쓰되 `.sectionLayout(.horizontal(width: 300))`를 함께 적용합니다.

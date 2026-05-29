@@ -46,7 +46,7 @@ enum LKCollectionLayoutProvider {
             let footer = section.footer == nil ? "no-footer" : "footer"
             let layout = section.layout?.signature ?? "default"
             let itemSpacing = section.itemSpacing.map(String.init(describing:)) ?? "default-spacing"
-            return "\(section.id)-\(header)-\(footer)-\(layout)-\(section.scrollAxis)-\(itemSpacing)-pinned-\(section.pinsHeader)"
+            return "\(section.id)-\(header)-\(footer)-\(layout)-\(section.scrollAxis)-\(section.orthogonalScrollingBehavior)-\(itemSpacing)-pinned-\(section.pinsHeader)"
         }
         return "\(defaultStyle)-\(sectionSignatures.joined(separator: "|"))"
     }
@@ -66,6 +66,12 @@ enum LKCollectionLayoutProvider {
                 environment: environment,
                 scrollAxis: model.scrollAxis
             )
+        case let .horizontal(width, height):
+            layoutSection = makeHorizontalSection(
+                for: model,
+                width: width,
+                height: height
+            )
         case let .grid(columns, spacing):
             layoutSection = makeGridSection(columns: columns, spacing: spacing, model: model)
         case let .custom(provider):
@@ -73,12 +79,20 @@ enum LKCollectionLayoutProvider {
             applyItemSpacing(model.itemSpacing, to: layoutSection)
             applyPinnedHeader(model.pinsHeader, to: layoutSection)
             if model.scrollAxis == .horizontal {
-                applyScrollAxis(model.scrollAxis, to: layoutSection)
+                applyScrollAxis(
+                    model.scrollAxis,
+                    behavior: model.orthogonalScrollingBehavior,
+                    to: layoutSection
+                )
             }
             return layoutSection
         }
         applyItemSpacing(model.itemSpacing, to: layoutSection)
-        applyScrollAxis(model.scrollAxis, to: layoutSection)
+        applyScrollAxis(
+            model.scrollAxis,
+            behavior: model.orthogonalScrollingBehavior,
+            to: layoutSection
+        )
         return layoutSection
     }
 
@@ -97,21 +111,42 @@ enum LKCollectionLayoutProvider {
             layoutSection.boundarySupplementaryItems = boundarySupplementaryItems(for: section)
         }
         applyItemSpacing(section?.itemSpacing, to: layoutSection)
-        applyScrollAxis(scrollAxis, to: layoutSection)
+        applyScrollAxis(
+            scrollAxis,
+            behavior: section?.orthogonalScrollingBehavior ?? .continuous,
+            to: layoutSection
+        )
         return layoutSection
     }
 
     private static func makeHorizontalSection(for model: LKSectionModel) -> NSCollectionLayoutSection {
+        makeHorizontalSection(for: model, width: nil, height: nil)
+    }
+
+    private static func makeHorizontalSection(
+        for model: LKSectionModel,
+        width: CGFloat?,
+        height: CGFloat?
+    ) -> NSCollectionLayoutSection {
         let effectiveSpacing = model.itemSpacing ?? 0
+        let itemWidth: NSCollectionLayoutDimension = width == nil
+            ? .estimated(44)
+            : .fractionalWidth(1)
+        let groupWidth: NSCollectionLayoutDimension = width.map {
+            .absolute(max($0, 1))
+        } ?? .estimated(44)
+        let groupHeight: NSCollectionLayoutDimension = height.map {
+            .absolute(max($0, 1))
+        } ?? .estimated(44)
         let itemSize = NSCollectionLayoutSize(
-            widthDimension: .estimated(44),
-            heightDimension: .estimated(44)
+            widthDimension: itemWidth,
+            heightDimension: groupHeight
         )
         let item = NSCollectionLayoutItem(layoutSize: itemSize)
 
         let groupSize = NSCollectionLayoutSize(
-            widthDimension: .estimated(44),
-            heightDimension: .estimated(44)
+            widthDimension: groupWidth,
+            heightDimension: groupHeight
         )
         let group = NSCollectionLayoutGroup.horizontal(
             layoutSize: groupSize,
@@ -127,7 +162,7 @@ enum LKCollectionLayoutProvider {
             trailing: effectiveSpacing / 2
         )
         section.boundarySupplementaryItems = boundarySupplementaryItems(for: model)
-        applyScrollAxis(.horizontal, to: section)
+        applyScrollAxis(.horizontal, behavior: model.orthogonalScrollingBehavior, to: section)
         return section
     }
 
@@ -191,13 +226,14 @@ enum LKCollectionLayoutProvider {
 
     private static func applyScrollAxis(
         _ axis: LKSectionScrollAxis,
+        behavior: LKSectionOrthogonalScrollingBehavior,
         to section: NSCollectionLayoutSection
     ) {
         switch axis {
         case .vertical:
             section.orthogonalScrollingBehavior = .none
         case .horizontal:
-            section.orthogonalScrollingBehavior = .continuous
+            section.orthogonalScrollingBehavior = behavior.uiKitValue
         }
     }
 

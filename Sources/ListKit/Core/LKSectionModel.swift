@@ -17,6 +17,7 @@ public struct LKSectionModel: Equatable {
     #if canImport(UIKit)
     public var layout: LKSectionLayout?
     public var scrollAxis: LKSectionScrollAxis
+    public var orthogonalScrollingBehavior: LKSectionOrthogonalScrollingBehavior
     public var itemSpacing: CGFloat?
     public var pinsHeader: Bool
     #endif
@@ -41,6 +42,7 @@ public struct LKSectionModel: Equatable {
         #if canImport(UIKit)
         self.layout = nil
         self.scrollAxis = .vertical
+        self.orthogonalScrollingBehavior = .continuous
         self.itemSpacing = nil
         self.pinsHeader = false
         #endif
@@ -55,6 +57,7 @@ public struct LKSectionModel: Equatable {
         supplementaries: [LKSupplementaryModel] = [],
         layout: LKSectionLayout?,
         scrollAxis: LKSectionScrollAxis = .vertical,
+        orthogonalScrollingBehavior: LKSectionOrthogonalScrollingBehavior = .continuous,
         itemSpacing: CGFloat? = nil,
         pinsHeader: Bool = false
     ) {
@@ -70,6 +73,7 @@ public struct LKSectionModel: Equatable {
         #endif
         self.layout = layout
         self.scrollAxis = scrollAxis
+        self.orthogonalScrollingBehavior = orthogonalScrollingBehavior
         self.itemSpacing = itemSpacing
         self.pinsHeader = pinsHeader
     }
@@ -97,6 +101,7 @@ public struct LKSectionModel: Equatable {
         return coreIsEqual
             && lhs.layout == rhs.layout
             && lhs.scrollAxis == rhs.scrollAxis
+            && lhs.orthogonalScrollingBehavior == rhs.orthogonalScrollingBehavior
             && lhs.itemSpacing == rhs.itemSpacing
             && lhs.pinsHeader == rhs.pinsHeader
         #else

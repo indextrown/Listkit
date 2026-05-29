@@ -127,6 +127,18 @@ public struct LKSection {
         )
     }
 
+    public func orthogonalScrollingBehavior(_ behavior: LKSectionOrthogonalScrollingBehavior) -> Self {
+        var model = model
+        model.orthogonalScrollingBehavior = behavior
+        return Self(
+            model: model,
+            events: events,
+            headerEvents: headerEvents,
+            footerEvents: footerEvents,
+            rows: rows
+        )
+    }
+
     public func itemSpacing(_ spacing: CGFloat) -> Self {
         var model = model
         model.itemSpacing = max(spacing, 0)

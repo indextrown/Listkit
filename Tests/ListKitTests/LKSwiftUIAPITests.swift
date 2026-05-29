@@ -137,7 +137,7 @@ final class LKSwiftUIAPITests: XCTestCase {
     }
 
     func testSectionLayoutModifierStoresLayoutInModel() {
-        let list = LKList {
+        let gridList = LKList {
             LKSection(id: "section") {
                 LKRow(id: "item") {
                     Text("Item")
@@ -145,8 +145,17 @@ final class LKSwiftUIAPITests: XCTestCase {
             }
             .sectionLayout(.grid(columns: 2, spacing: 8))
         }
+        let horizontalList = LKList {
+            LKSection(id: "section") {
+                LKRow(id: "item") {
+                    Text("Item")
+                }
+            }
+            .sectionLayout(.horizontal(width: 300))
+        }
 
-        XCTAssertEqual(list.model.sections[0].layout, .grid(columns: 2, spacing: 8))
+        XCTAssertEqual(gridList.model.sections[0].layout, .grid(columns: 2, spacing: 8))
+        XCTAssertEqual(horizontalList.model.sections[0].layout, .horizontal(width: 300))
     }
 
     func testCustomSectionLayoutAcceptsFactoryReturnedProvider() {
@@ -184,6 +193,20 @@ final class LKSwiftUIAPITests: XCTestCase {
 
         XCTAssertEqual(verticalList.model.sections[0].scrollAxis, .vertical)
         XCTAssertEqual(horizontalList.model.sections[0].scrollAxis, .horizontal)
+    }
+
+    func testSectionOrthogonalScrollingBehaviorModifierStoresBehaviorInModel() {
+        let list = LKList {
+            LKSection(id: "section") {
+                LKRow(id: "item") {
+                    Text("Item")
+                }
+            }
+            .scrollAxis(.horizontal)
+            .orthogonalScrollingBehavior(.groupPagingCentered)
+        }
+
+        XCTAssertEqual(list.model.sections[0].orthogonalScrollingBehavior, .groupPagingCentered)
     }
 
     func testSectionItemSpacingModifierStoresSpacingInModel() {
