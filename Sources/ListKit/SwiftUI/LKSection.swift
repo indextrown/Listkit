@@ -150,6 +150,22 @@ public struct LKSection {
             rows: rows
         )
     }
+
+    public func pinnedHeader(_ isPinned: Bool = true, background: Color) -> Self {
+        pinnedHeader(isPinned).headerBackground(background)
+    }
+
+    public func headerBackground(_ color: Color) -> Self {
+        var model = model
+        model.header?.backgroundColor = UIColor(color)
+        return Self(
+            model: model,
+            events: events,
+            headerEvents: headerEvents,
+            footerEvents: footerEvents,
+            rows: rows
+        )
+    }
     #endif
 
     public func onShouldSelect(_ handler: @escaping (LKAnyItemContext) -> Bool) -> Self {

@@ -1893,4 +1893,141 @@ extension LKCollectionViewAdapter: UICollectionViewDelegate {
         listEvents.didScrollToTop?(scrollContext(for: scrollView))
     }
 }
+
+extension LKCollectionViewAdapter: LKListScrollControlling {
+    func scrollToTop(animated: Bool) {
+        guard let collectionView else {
+            return
+        }
+
+        collectionView.setContentOffset(
+            CGPoint(
+                x: collectionView.contentOffset.x,
+                y: -collectionView.adjustedContentInset.top
+            ),
+            animated: animated
+        )
+    }
+
+    func scrollToOffset(_ offset: CGPoint, animated: Bool) {
+        collectionView?.setContentOffset(offset, animated: animated)
+    }
+
+    func scrollToItem(
+        id: AnyHashable,
+        sectionID: AnyHashable?,
+        position: LKScrollPosition,
+        animated: Bool
+    ) -> Bool {
+        guard let collectionView, let indexPath = indexPath(forItemID: id, sectionID: sectionID) else {
+            return false
+        }
+
+        collectionView.scrollToItem(
+            at: indexPath,
+            at: position.collectionViewScrollPosition,
+            animated: animated
+        )
+        return true
+    }
+
+    func scrollToSection(
+        id: AnyHashable,
+        position: LKScrollPosition,
+        animated: Bool
+    ) -> Bool {
+        guard
+            let collectionView,
+            let sectionIndex = currentModel.sections.firstIndex(where: { $0.id == id })
+        else {
+            return false
+        }
+
+        let section = currentModel.sections[sectionIndex]
+        if let firstItem = section.items.first {
+            return scrollToItem(
+                id: firstItem.id,
+                sectionID: id,
+                position: position,
+                animated: animated
+            )
+        }
+
+        guard section.header != nil else {
+            return false
+        }
+
+        collectionView.layoutIfNeeded()
+        let indexPath = IndexPath.lkIndexPath(item: 0, section: sectionIndex)
+        guard let attributes = collectionView.collectionViewLayout.layoutAttributesForSupplementaryView(
+            ofKind: UICollectionView.elementKindSectionHeader,
+            at: indexPath
+        ) else {
+            return false
+        }
+
+        collectionView.setContentOffset(
+            targetContentOffset(for: attributes.frame, position: position, in: collectionView),
+            animated: animated
+        )
+        return true
+    }
+
+    private func indexPath(forItemID itemID: AnyHashable, sectionID: AnyHashable?) -> IndexPath? {
+        if let sectionID {
+            for sectionIndex in currentModel.sections.indices {
+                let section = currentModel.sections[sectionIndex]
+                guard section.id == sectionID else {
+                    continue
+                }
+
+                for itemIndex in section.items.indices where section.items[itemIndex].id == itemID {
+                    return IndexPath.lkIndexPath(item: itemIndex, section: sectionIndex)
+                }
+            }
+            return nil
+        }
+
+        return modelIndexForCurrentModel().indexPath(forItemID: itemID)
+    }
+
+    private func targetContentOffset(
+        for rect: CGRect,
+        position: LKScrollPosition,
+        in collectionView: UICollectionView
+    ) -> CGPoint {
+        switch position {
+        case .top:
+            return CGPoint(
+                x: collectionView.contentOffset.x,
+                y: rect.minY - collectionView.adjustedContentInset.top
+            )
+        case .centeredVertically:
+            return CGPoint(
+                x: collectionView.contentOffset.x,
+                y: rect.midY - collectionView.bounds.height / 2
+            )
+        case .bottom:
+            return CGPoint(
+                x: collectionView.contentOffset.x,
+                y: rect.maxY - collectionView.bounds.height + collectionView.adjustedContentInset.bottom
+            )
+        case .left:
+            return CGPoint(
+                x: rect.minX - collectionView.adjustedContentInset.left,
+                y: collectionView.contentOffset.y
+            )
+        case .centeredHorizontally:
+            return CGPoint(
+                x: rect.midX - collectionView.bounds.width / 2,
+                y: collectionView.contentOffset.y
+            )
+        case .right:
+            return CGPoint(
+                x: rect.maxX - collectionView.bounds.width + collectionView.adjustedContentInset.right,
+                y: collectionView.contentOffset.y
+            )
+        }
+    }
+}
 #endif

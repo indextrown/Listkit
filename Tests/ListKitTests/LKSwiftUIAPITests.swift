@@ -224,6 +224,22 @@ final class LKSwiftUIAPITests: XCTestCase {
         XCTAssertTrue(pinnedList.model.sections[0].pinsHeader)
     }
 
+    func testHeaderBackgroundModifierStoresHeaderBackgroundColor() {
+        let list = LKList {
+            LKSection(id: "section") {
+                LKRow(id: "item") {
+                    Text("Item")
+                }
+            } header: {
+                Text("Header")
+            }
+            .pinnedHeader(background: .red)
+        }
+
+        XCTAssertTrue(list.model.sections[0].pinsHeader)
+        XCTAssertNotNil(list.model.sections[0].header?.backgroundColor)
+    }
+
     func testSectionSupplementaryDisplayModifiersStoreHandlersInModel() {
         let list = LKList {
             LKSection(id: "section") {
@@ -275,9 +291,11 @@ final class LKSwiftUIAPITests: XCTestCase {
     }
 
     func testScrollModifiersStoreEventsAndConfiguration() {
+        let proxy = LKListProxy()
         let list = LKList([Message(id: 1, title: "One")], id: \.id) { message in
             Text(message.title)
         }
+        .listProxy(proxy)
         .onScroll { _ in }
         .onWillBeginDragging { _ in }
         .onWillEndDragging { _ in }
@@ -300,6 +318,7 @@ final class LKSwiftUIAPITests: XCTestCase {
         XCTAssertNotNil(list.events.shouldScrollToTop)
         XCTAssertNotNil(list.events.didScrollToTop)
         XCTAssertNotNil(list.events.didReachEnd)
+        XCTAssertTrue(list.listProxy === proxy)
         XCTAssertEqual(list.scrollConfiguration.indicatorVisibility, .hidden)
         XCTAssertEqual(list.scrollConfiguration.keyboardDismissMode, UIScrollView.KeyboardDismissMode.onDrag.rawValue)
         XCTAssertEqual(list.scrollConfiguration.contentInsets, LKEdgeInsets(top: 1, left: 2, bottom: 3, right: 4))

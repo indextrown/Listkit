@@ -736,6 +736,54 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         XCTAssertTrue(adapter.scrollViewShouldScrollToTop(collectionView))
     }
 
+    func testListProxyScrollToTopUsesAdjustedContentInset() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        collectionView.contentInset = UIEdgeInsets(top: 24, left: 0, bottom: 0, right: 0)
+        collectionView.contentOffset = CGPoint(x: 8, y: 300)
+
+        adapter.scrollToTop(animated: false)
+
+        XCTAssertEqual(collectionView.contentOffset, CGPoint(x: 8, y: -collectionView.adjustedContentInset.top))
+    }
+
+    func testListProxyScrollToOffsetUsesRequestedOffset() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let targetOffset = CGPoint(x: 12, y: 240)
+
+        adapter.scrollToOffset(targetOffset, animated: false)
+
+        XCTAssertEqual(collectionView.contentOffset, targetOffset)
+    }
+
+    func testListProxyScrollToItemAndSectionResolveCurrentModelIDs() {
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView)
+        let model = LKListModel(
+            sections: [
+                LKSectionModel(
+                    id: "first-section",
+                    items: [
+                        LKItemModel(id: "first"),
+                    ]
+                ),
+                LKSectionModel(
+                    id: "second-section",
+                    items: [
+                        LKItemModel(id: "second"),
+                    ]
+                ),
+            ]
+        )
+        adapter.apply(model)
+
+        XCTAssertTrue(adapter.scrollToItem(id: "second", sectionID: "second-section", position: .top, animated: false))
+        XCTAssertTrue(adapter.scrollToSection(id: "second-section", position: .top, animated: false))
+        XCTAssertFalse(adapter.scrollToItem(id: "missing", sectionID: nil, position: .top, animated: false))
+        XCTAssertFalse(adapter.scrollToSection(id: "missing-section", position: .top, animated: false))
+    }
+
     func testReachEndFiresAtThresholdAndRearmsAfterMovingAway() {
         let collectionView = makeCollectionView()
         collectionView.contentSize = CGSize(width: 320, height: 1_000)
@@ -1327,9 +1375,10 @@ final class LKCollectionViewAdapterTests: XCTestCase {
     func testDequeuedSupplementaryViewsRenderSwiftUIConfigurations() {
         let collectionView = makeCollectionView()
         let adapter = LKCollectionViewAdapter(collectionView: collectionView)
-        let header = LKSupplementaryModel(id: "header", kind: .header) {
+        var header = LKSupplementaryModel(id: "header", kind: .header) {
             AnyView(Text("Header"))
         }
+        header.backgroundColor = .systemBackground
         let footer = LKSupplementaryModel(id: "footer", kind: .footer) {
             AnyView(Text("Footer"))
         }
@@ -1357,6 +1406,10 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         XCTAssertEqual(footerView?.renderedSupplementaryID, AnyHashable("footer"))
         XCTAssertNotNil(headerView?.hostedContentView)
         XCTAssertNotNil(footerView?.hostedContentView)
+        XCTAssertEqual(headerView?.backgroundColor, .systemBackground)
+        XCTAssertEqual(headerView?.hostedContentView?.backgroundColor, .systemBackground)
+        XCTAssertTrue(headerView?.isOpaque == true)
+        XCTAssertNil(footerView?.backgroundColor)
     }
 
     func testCellConfigurationStateIsRenderedIntoSwiftUIEnvironmentState() {

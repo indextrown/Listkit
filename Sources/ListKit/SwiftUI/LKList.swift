@@ -16,6 +16,7 @@ public struct LKList<Content: View>: View {
     #if canImport(UIKit)
     let style: LKListStyle
     let updateEngine: LKUpdateEngine
+    let listProxy: LKListProxy?
     #endif
 
     @ViewBuilder
@@ -29,7 +30,8 @@ public struct LKList<Content: View>: View {
             refreshConfiguration: refreshConfiguration,
             diagnosticsMode: diagnosticsMode,
             style: style,
-            updateEngine: updateEngine
+            updateEngine: updateEngine,
+            listProxy: listProxy
         )
         #else
         EmptyView()
@@ -67,6 +69,7 @@ public struct LKList<Content: View>: View {
         #if canImport(UIKit)
         self.style = .plain
         self.updateEngine = .differenceKit
+        self.listProxy = nil
         #endif
     }
 
@@ -82,6 +85,7 @@ public struct LKList<Content: View>: View {
         #if canImport(UIKit)
         self.style = .plain
         self.updateEngine = .differenceKit
+        self.listProxy = nil
         #endif
     }
 
@@ -95,7 +99,8 @@ public struct LKList<Content: View>: View {
         diagnosticsMode: LKListKitDiagnosticsMode,
         sections: [LKSection],
         style: LKListStyle,
-        updateEngine: LKUpdateEngine
+        updateEngine: LKUpdateEngine,
+        listProxy: LKListProxy?
     ) {
         self.model = model
         self.events = events
@@ -106,6 +111,7 @@ public struct LKList<Content: View>: View {
         self.sections = sections
         self.style = style
         self.updateEngine = updateEngine
+        self.listProxy = listProxy
     }
 
     public func listKitStyle(_ style: LKListStyle) -> Self {
@@ -118,7 +124,8 @@ public struct LKList<Content: View>: View {
             diagnosticsMode: diagnosticsMode,
             sections: sections,
             style: style,
-            updateEngine: updateEngine
+            updateEngine: updateEngine,
+            listProxy: listProxy
         )
     }
 
@@ -132,7 +139,23 @@ public struct LKList<Content: View>: View {
             diagnosticsMode: diagnosticsMode,
             sections: sections,
             style: style,
-            updateEngine: updateEngine
+            updateEngine: updateEngine,
+            listProxy: listProxy
+        )
+    }
+
+    public func listProxy(_ proxy: LKListProxy) -> Self {
+        Self(
+            model: model,
+            events: events,
+            selectionConfiguration: selectionConfiguration,
+            scrollConfiguration: scrollConfiguration,
+            refreshConfiguration: refreshConfiguration,
+            diagnosticsMode: diagnosticsMode,
+            sections: sections,
+            style: style,
+            updateEngine: updateEngine,
+            listProxy: proxy
         )
     }
     #endif
@@ -467,7 +490,8 @@ public struct LKList<Content: View>: View {
             diagnosticsMode: diagnosticsMode,
             sections: sections,
             style: style,
-            updateEngine: updateEngine
+            updateEngine: updateEngine,
+            listProxy: listProxy
         )
         #else
         self
@@ -485,7 +509,8 @@ public struct LKList<Content: View>: View {
             diagnosticsMode: diagnosticsMode,
             sections: sections,
             style: style,
-            updateEngine: updateEngine
+            updateEngine: updateEngine,
+            listProxy: listProxy
         )
         #else
         self
@@ -503,7 +528,8 @@ public struct LKList<Content: View>: View {
             diagnosticsMode: diagnosticsMode,
             sections: sections,
             style: style,
-            updateEngine: updateEngine
+            updateEngine: updateEngine,
+            listProxy: listProxy
         )
         #else
         self
@@ -521,7 +547,8 @@ public struct LKList<Content: View>: View {
             diagnosticsMode: diagnosticsMode,
             sections: sections,
             style: style,
-            updateEngine: updateEngine
+            updateEngine: updateEngine,
+            listProxy: listProxy
         )
         #else
         self
@@ -539,7 +566,8 @@ public struct LKList<Content: View>: View {
             diagnosticsMode: diagnosticsMode,
             sections: sections,
             style: style,
-            updateEngine: updateEngine
+            updateEngine: updateEngine,
+            listProxy: listProxy
         )
         #else
         self
@@ -557,7 +585,8 @@ public struct LKList<Content: View>: View {
             diagnosticsMode: diagnosticsMode,
             sections: sections,
             style: style,
-            updateEngine: updateEngine
+            updateEngine: updateEngine,
+            listProxy: listProxy
         )
         #else
         self

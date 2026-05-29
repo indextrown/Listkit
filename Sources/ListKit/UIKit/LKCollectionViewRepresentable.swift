@@ -11,6 +11,7 @@ struct LKCollectionViewRepresentable: UIViewRepresentable {
     let diagnosticsMode: LKListKitDiagnosticsMode
     let style: LKListStyle
     let updateEngine: LKUpdateEngine
+    let listProxy: LKListProxy?
 
     init(
         model: LKListModel,
@@ -20,7 +21,8 @@ struct LKCollectionViewRepresentable: UIViewRepresentable {
         refreshConfiguration: LKRefreshConfiguration = LKRefreshConfiguration(),
         diagnosticsMode: LKListKitDiagnosticsMode = .disabled,
         style: LKListStyle = .plain,
-        updateEngine: LKUpdateEngine = .differenceKit
+        updateEngine: LKUpdateEngine = .differenceKit,
+        listProxy: LKListProxy? = nil
     ) {
         self.model = model
         self.listEvents = listEvents
@@ -30,6 +32,7 @@ struct LKCollectionViewRepresentable: UIViewRepresentable {
         self.diagnosticsMode = diagnosticsMode
         self.style = style
         self.updateEngine = updateEngine
+        self.listProxy = listProxy
     }
 
     func makeCoordinator() -> Coordinator {
@@ -41,7 +44,8 @@ struct LKCollectionViewRepresentable: UIViewRepresentable {
             refreshConfiguration: refreshConfiguration,
             diagnosticsMode: diagnosticsMode,
             style: style,
-            updateEngine: updateEngine
+            updateEngine: updateEngine,
+            listProxy: listProxy
         )
     }
 
@@ -69,6 +73,7 @@ struct LKCollectionViewRepresentable: UIViewRepresentable {
             diagnosticsMode: diagnosticsMode,
             style: style,
             updateEngine: updateEngine,
+            listProxy: listProxy,
             to: collectionView
         )
     }
@@ -83,6 +88,8 @@ struct LKCollectionViewRepresentable: UIViewRepresentable {
         private var pendingDiagnosticsMode: LKListKitDiagnosticsMode
         private var pendingStyle: LKListStyle
         private var pendingUpdateEngine: LKUpdateEngine
+        private weak var pendingListProxy: LKListProxy?
+        private weak var attachedListProxy: LKListProxy?
         private var layoutSignature: String
 
         init(
@@ -93,7 +100,8 @@ struct LKCollectionViewRepresentable: UIViewRepresentable {
             refreshConfiguration: LKRefreshConfiguration,
             diagnosticsMode: LKListKitDiagnosticsMode,
             style: LKListStyle,
-            updateEngine: LKUpdateEngine
+            updateEngine: LKUpdateEngine,
+            listProxy: LKListProxy?
         ) {
             self.pendingModel = model
             self.pendingListEvents = listEvents
@@ -103,6 +111,7 @@ struct LKCollectionViewRepresentable: UIViewRepresentable {
             self.pendingDiagnosticsMode = diagnosticsMode
             self.pendingStyle = style
             self.pendingUpdateEngine = updateEngine
+            self.pendingListProxy = listProxy
             self.layoutSignature = ""
         }
 
@@ -121,6 +130,7 @@ struct LKCollectionViewRepresentable: UIViewRepresentable {
                 diagnosticsMode: pendingDiagnosticsMode,
                 updateEngine: pendingUpdateEngine
             )
+            attachProxyIfNeeded()
         }
 
         @MainActor
@@ -133,6 +143,7 @@ struct LKCollectionViewRepresentable: UIViewRepresentable {
             diagnosticsMode: LKListKitDiagnosticsMode,
             style: LKListStyle,
             updateEngine: LKUpdateEngine,
+            listProxy: LKListProxy?,
             to collectionView: UICollectionView
         ) {
             pendingModel = model
@@ -143,6 +154,7 @@ struct LKCollectionViewRepresentable: UIViewRepresentable {
             pendingDiagnosticsMode = diagnosticsMode
             pendingStyle = style
             pendingUpdateEngine = updateEngine
+            pendingListProxy = listProxy
             updateLayoutIfNeeded(model: model, style: style, collectionView: collectionView)
             adapter?.apply(
                 model,
@@ -153,6 +165,20 @@ struct LKCollectionViewRepresentable: UIViewRepresentable {
                 diagnosticsMode: diagnosticsMode,
                 deferSelectionBindingUpdates: true
             )
+            attachProxyIfNeeded()
+        }
+
+        @MainActor
+        private func attachProxyIfNeeded() {
+            guard let adapter else {
+                return
+            }
+
+            if attachedListProxy !== pendingListProxy {
+                attachedListProxy?.detach(adapter)
+                pendingListProxy?.attach(adapter)
+                attachedListProxy = pendingListProxy
+            }
         }
 
         @MainActor

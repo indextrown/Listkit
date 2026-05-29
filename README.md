@@ -22,6 +22,7 @@ The project goal is to keep SwiftUI-style list declaration while exposing the co
 - [Section Layouts](#section-layouts)
 - [Selection And Primary Action](#selection-and-primary-action)
 - [Dynamic Height And Self-Sizing](#dynamic-height-and-self-sizing)
+- [Programmatic Scrolling](#programmatic-scrolling)
 - [Refresh And Search](#refresh-and-search)
 - [Context Menus](#context-menus)
 - [Swipe Actions](#swipe-actions)
@@ -298,11 +299,14 @@ LKSection(id: "featured") {
     makeFeaturedSection(sectionIndex: sectionIndex, environment: environment)
 })
 .pinnedHeader()
+.headerBackground(.systemBackground)
 ```
 
 For `.list`, `.grid`, and `.custom` layouts, `.pinnedHeader()` maps to the header boundary supplementary item's `pinToVisibleBounds`. With `.custom`, ListKit preserves the provider's header size, alignment, and content insets, and only updates `pinToVisibleBounds` for header boundary items. Footer boundary items are not pinned by `.pinnedHeader()`.
 
 When extracting a custom layout helper, return `LKCustomSectionLayoutProvider` and pass it to `.custom(...)`.
+
+Use `.headerBackground(...)` with pinned headers when the supplementary container should cover content scrolling underneath it. The color is applied to the collection reusable view and the hosted root view, not only to the SwiftUI header content.
 
 ## Selection And Primary Action
 
@@ -346,6 +350,25 @@ For large dynamic rows:
 - Provide an equality token for state that changes row size.
 - Prefer estimated list layouts over fixed-size grid cells when text can wrap.
 - Keep expensive image work behind display lifecycle or prefetch hooks.
+
+## Programmatic Scrolling
+
+Use `LKListProxy` when the parent SwiftUI view needs to control list scrolling without reaching into the UIKit view tree.
+
+```swift
+@State private var listProxy = LKListProxy()
+
+LKList(messages, id: \.id) { message in
+    MessageRow(message: message)
+}
+.listProxy(listProxy)
+
+Button("Top") {
+    listProxy.scrollToTop(animated: true)
+}
+```
+
+`scrollToTop(animated:)` uses the collection view's `adjustedContentInset.top` so the target is the actual visible top. The same proxy also supports `scrollToOffset(_:animated:)`, `scrollToItem(id:sectionID:position:animated:)`, and `scrollToSection(id:position:animated:)` for more specific targets.
 
 ## Refresh And Search
 

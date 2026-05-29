@@ -1,6 +1,9 @@
 #if canImport(SwiftUI)
 import SwiftUI
 #endif
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// Header, footer, or custom supplementary model used by the adapter.
 public struct LKSupplementaryModel: Equatable {
@@ -9,6 +12,9 @@ public struct LKSupplementaryModel: Equatable {
     public let reuseIdentifier: String
     public let hostingStrategy: LKHostingStrategy
     public let contentToken: AnyHashable?
+    #if canImport(UIKit)
+    public var backgroundColor: UIColor?
+    #endif
     #if canImport(SwiftUI)
     let content: LKAnyViewContent?
     #endif
@@ -25,6 +31,9 @@ public struct LKSupplementaryModel: Equatable {
         self.reuseIdentifier = reuseIdentifier
         self.hostingStrategy = hostingStrategy
         self.contentToken = contentToken
+        #if canImport(UIKit)
+        self.backgroundColor = nil
+        #endif
         #if canImport(SwiftUI)
         self.content = nil
         #endif
@@ -44,15 +53,25 @@ public struct LKSupplementaryModel: Equatable {
         self.reuseIdentifier = reuseIdentifier
         self.hostingStrategy = hostingStrategy
         self.contentToken = contentToken
+        #if canImport(UIKit)
+        self.backgroundColor = nil
+        #endif
         self.content = LKAnyViewContent(content)
     }
     #endif
 
     public static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.id == rhs.id
+        let coreIsEqual = lhs.id == rhs.id
             && lhs.kind == rhs.kind
             && lhs.reuseIdentifier == rhs.reuseIdentifier
             && lhs.hostingStrategy == rhs.hostingStrategy
             && lhs.contentToken == rhs.contentToken
+
+        #if canImport(UIKit)
+        return coreIsEqual
+            && lhs.backgroundColor == rhs.backgroundColor
+        #else
+        return coreIsEqual
+        #endif
     }
 }

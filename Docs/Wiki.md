@@ -480,3 +480,72 @@ public enum LKSectionLayout {
 ```
 
 ListKit의 layout 생성 경로인 `LKCollectionLayoutProvider`는 `@MainActor`에 남아 있으므로 UIKit compositional layout section 생성은 기존처럼 main actor에서 수행됩니다. public API에서는 앱 helper 함수가 불필요하게 `@MainActor @Sendable` 함수 타입으로 변환되지 않게 합니다.
+
+## Scroll API
+
+문제:
+
+앱에서 리스트를 최상단이나 특정 위치로 이동시키려면 `UICollectionView`를 직접 찾아야 했습니다. SwiftUI 화면이 `UIViewRepresentable`로 view tree를 탐색하고 `setContentOffset`을 호출하는 방식은 ListKit 내부 구현을 앱 코드가 알아야 하므로 유지보수하기 어렵습니다.
+
+해결방법:
+
+`LKListProxy`를 통해 SwiftUI에서 스크롤을 제어합니다.
+
+```swift
+@State private var listProxy = LKListProxy()
+
+LKList {
+    // sections
+}
+.listProxy(listProxy)
+
+Button("Top") {
+    listProxy.scrollToTop(animated: true)
+}
+```
+
+제공 API:
+
+- `scrollToTop(animated:)`: `adjustedContentInset.top`을 고려해 실제 최상단으로 이동합니다.
+- `scrollToOffset(_:animated:)`: 임의의 content offset으로 이동합니다.
+- `scrollToItem(id:sectionID:position:animated:)`: item id 기반으로 특정 row 위치로 이동합니다.
+- `scrollToSection(id:position:animated:)`: section id 기반으로 해당 section의 첫 item 또는 header 위치로 이동합니다.
+
+정책:
+
+- proxy 호출은 `@MainActor`에서 동작합니다.
+- 기존 `LKList` 사용 코드는 `.listProxy(...)`를 붙이지 않아도 그대로 동작합니다.
+- 향후 row/section id 기반 확장을 위해 top 이동만 별도 closure로 두지 않고 proxy 타입으로 분리했습니다.
+
+## Pinned header 배경 처리
+
+문제:
+
+`pinnedHeader`가 셀 위에 고정될 때 SwiftUI header content 주변의 좌우 또는 상단 여백이 투명하면 아래 셀 이미지와 내용이 비쳐 보일 수 있습니다. header content에 `.background(...)`를 붙여도 `UICollectionView` supplementary view 전체 영역과 hosting root view가 투명하면 여백 영역은 계속 비칠 수 있습니다.
+
+해결방법:
+
+pinned header에 사용할 배경색을 section modifier로 지정합니다.
+
+```swift
+LKSection(id: "best") {
+    // rows
+} header: {
+    BestHeader()
+}
+.pinnedHeader(background: Color.subWhite)
+```
+
+또는 pinning과 별도로 배경만 설정할 수 있습니다.
+
+```swift
+.pinnedHeader()
+.headerBackground(Color.subWhite)
+```
+
+정책:
+
+- 배경색은 supplementary reusable view와 hosted SwiftUI root view 양쪽에 적용합니다.
+- custom compositional layout provider가 직접 만든 header boundary item에도 동작합니다.
+- header layout size, alignment, contentInsets는 custom provider가 만든 값을 유지합니다.
+- 기본값은 `nil`이므로 기존 header의 투명 배경 동작은 명시적으로 배경을 지정하지 않는 한 바뀌지 않습니다.

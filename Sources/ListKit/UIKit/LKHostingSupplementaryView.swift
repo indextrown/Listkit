@@ -16,6 +16,7 @@ final class LKHostingSupplementaryView: UICollectionReusableView {
         renderedSupplementaryID = supplementary.id
         renderedState = state
         self.onSizeChange = onSizeChange
+        applyBackgroundColor(supplementary.backgroundColor)
         hostedContentView?.removeFromSuperview()
 
         guard let content = supplementary.content else {
@@ -24,6 +25,8 @@ final class LKHostingSupplementaryView: UICollectionReusableView {
         }
 
         let contentView = content.makeSupplementaryContentView(state: state)
+        contentView.backgroundColor = supplementary.backgroundColor
+        contentView.isOpaque = isOpaque
 
         contentView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(contentView)
@@ -34,6 +37,11 @@ final class LKHostingSupplementaryView: UICollectionReusableView {
             contentView.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
         hostedContentView = contentView
+    }
+
+    private func applyBackgroundColor(_ backgroundColor: UIColor?) {
+        self.backgroundColor = backgroundColor
+        isOpaque = (backgroundColor?.cgColor.alpha ?? 0) >= 1
     }
 
     override func preferredLayoutAttributesFitting(

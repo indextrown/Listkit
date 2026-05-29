@@ -19,6 +19,7 @@
 - [Identity와 Equality](#identity와-equality)
 - [Update Engine](#update-engine)
 - [Section Layout](#section-layout)
+- [프로그래밍 방식 스크롤](#프로그래밍-방식-스크롤)
 - [Refresh와 Search](#refresh와-search)
 - [Context Menu](#context-menu)
 - [Swipe Actions](#swipe-actions)
@@ -273,11 +274,33 @@ LKSection(id: "featured") {
     makeFeaturedSection(sectionIndex: sectionIndex, environment: environment)
 })
 .pinnedHeader()
+.headerBackground(.systemBackground)
 ```
 
 `.list`, `.grid`, `.custom` layout 모두에서 `.pinnedHeader()`는 header boundary supplementary item의 `pinToVisibleBounds`에 반영됩니다. `.custom`에서는 provider가 만든 header의 size, alignment, contentInsets는 유지하고 header boundary item의 `pinToVisibleBounds`만 바꿉니다. footer boundary item에는 `.pinnedHeader()`를 적용하지 않습니다.
 
 custom layout helper를 함수로 분리할 때는 `LKCustomSectionLayoutProvider`를 반환해서 `.custom(...)`에 전달하면 됩니다.
+
+pinned header 뒤로 아래 content가 비치면 `.headerBackground(...)`를 함께 사용합니다. 이 색상은 SwiftUI header content뿐 아니라 collection reusable view와 hosted root view에도 적용됩니다.
+
+## 프로그래밍 방식 스크롤
+
+SwiftUI 부모 view에서 list 스크롤을 제어해야 하면 UIKit view tree를 직접 탐색하지 말고 `LKListProxy`를 사용합니다.
+
+```swift
+@State private var listProxy = LKListProxy()
+
+LKList(messages, id: \.id) { message in
+    MessageRow(message: message)
+}
+.listProxy(listProxy)
+
+Button("Top") {
+    listProxy.scrollToTop(animated: true)
+}
+```
+
+`scrollToTop(animated:)`은 collection view의 `adjustedContentInset.top`을 고려해 실제 보이는 최상단으로 이동합니다. 같은 proxy로 `scrollToOffset(_:animated:)`, `scrollToItem(id:sectionID:position:animated:)`, `scrollToSection(id:position:animated:)`도 사용할 수 있습니다.
 
 ## Refresh와 Search
 
