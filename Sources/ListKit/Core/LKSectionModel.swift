@@ -1,6 +1,9 @@
 #if canImport(CoreGraphics)
 import CoreGraphics
 #endif
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// Collection-view section model used by the adapter and update engines.
 public struct LKSectionModel: Equatable {
@@ -19,6 +22,8 @@ public struct LKSectionModel: Equatable {
     public var scrollAxis: LKSectionScrollAxis
     public var orthogonalScrollingBehavior: LKSectionOrthogonalScrollingBehavior
     public var itemSpacing: CGFloat?
+    public var sectionContentInsets: LKEdgeInsets?
+    public var supplementaryContentInsetsReference: UIContentInsetsReference?
     public var pinsHeader: Bool
     #endif
 
@@ -44,6 +49,8 @@ public struct LKSectionModel: Equatable {
         self.scrollAxis = .vertical
         self.orthogonalScrollingBehavior = .continuous
         self.itemSpacing = nil
+        self.sectionContentInsets = nil
+        self.supplementaryContentInsetsReference = nil
         self.pinsHeader = false
         #endif
     }
@@ -59,6 +66,8 @@ public struct LKSectionModel: Equatable {
         scrollAxis: LKSectionScrollAxis = .vertical,
         orthogonalScrollingBehavior: LKSectionOrthogonalScrollingBehavior = .continuous,
         itemSpacing: CGFloat? = nil,
+        sectionContentInsets: LKEdgeInsets? = nil,
+        supplementaryContentInsetsReference: UIContentInsetsReference? = nil,
         pinsHeader: Bool = false
     ) {
         self.id = AnyHashable(id)
@@ -75,6 +84,8 @@ public struct LKSectionModel: Equatable {
         self.scrollAxis = scrollAxis
         self.orthogonalScrollingBehavior = orthogonalScrollingBehavior
         self.itemSpacing = itemSpacing
+        self.sectionContentInsets = sectionContentInsets
+        self.supplementaryContentInsetsReference = supplementaryContentInsetsReference
         self.pinsHeader = pinsHeader
     }
     #endif
@@ -103,6 +114,8 @@ public struct LKSectionModel: Equatable {
             && lhs.scrollAxis == rhs.scrollAxis
             && lhs.orthogonalScrollingBehavior == rhs.orthogonalScrollingBehavior
             && lhs.itemSpacing == rhs.itemSpacing
+            && lhs.sectionContentInsets == rhs.sectionContentInsets
+            && lhs.supplementaryContentInsetsReference == rhs.supplementaryContentInsetsReference
             && lhs.pinsHeader == rhs.pinsHeader
         #else
         return coreIsEqual

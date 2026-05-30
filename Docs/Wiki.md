@@ -624,3 +624,138 @@ LKSection(id: "featured") {
 ### 예제
 
 샘플 앱의 `HorizontalPagingExample`은 `.none`, `.continuous`, `.continuousGroupLeadingBoundary`, `.paging`, `.groupPaging`, `.groupPagingCentered`를 섹션별로 보여줍니다. 각 섹션은 같은 row content를 쓰되 `.sectionLayout(.horizontal(width: 300))`를 함께 적용합니다.
+
+## HomeFeature section layout DSL 확장
+
+### 문제
+
+PopPang HomeFeature의 V0 홈 화면은 섹션마다 서로 다른 compositional layout 세부값이 필요했습니다.
+
+필요했던 제어:
+
+- section contentInsets
+- header/footer supplementary가 section inset을 따를지 여부
+- horizontal section의 item spacing과 section bottom inset 분리
+- fixed-height grid card
+- grid columnSpacing과 rowSpacing 분리
+
+기존 ListKit API만으로는 이 조합을 표현하기 어려워 화면마다 custom layout provider를 만들어야 했습니다.
+
+```swift
+.sectionLayout(.custom(Self.horizontalSectionLayout(
+    width: 194,
+    height: 271,
+    spacing: 15,
+    bottomInset: 50
+)))
+```
+
+이 방식은 화면 코드에 UIKit compositional layout boilerplate가 반복되고, `headerItem()` 같은 보조 helper까지 앱 레벨에 남게 됩니다.
+
+### 해결방법
+
+section model에 layout option을 추가하고 SwiftUI DSL modifier로 노출했습니다.
+
+```swift
+LKSection(id: "best") {
+    // rows
+} header: {
+    HomeBestHeader()
+}
+.sectionLayout(.horizontal(width: 194, height: 271))
+.scrollAxis(.horizontal)
+.orthogonalScrollingBehavior(.continuousGroupLeadingBoundary)
+.itemSpacing(15)
+.sectionContentInsets(LKEdgeInsets(top: 0, leading: 15, bottom: 50, trailing: 15))
+.supplementaryContentInsetsReference(.none)
+.pinnedHeader(background: Color.subWhite)
+```
+
+fixed-height grid는 기존 `.grid(columns:spacing:)` case를 유지하면서 새 factory를 추가했습니다.
+
+```swift
+.sectionLayout(.grid(
+    columns: 2,
+    itemHeight: 302,
+    columnSpacing: 15,
+    rowSpacing: 20
+))
+```
+
+내부적으로는 `.fixedGrid(columns:itemHeight:columnSpacing:rowSpacing:)` case로 저장됩니다. 기존 `.grid(columns:spacing:)` pattern matching source compatibility를 유지하기 위해 기존 case의 associated value shape는 바꾸지 않았습니다.
+
+### 구현 정책
+
+- `LKSectionModel.sectionContentInsets`는 `NSCollectionLayoutSection.contentInsets`에 반영합니다.
+- `LKSectionModel.supplementaryContentInsetsReference`는 iOS 16+의 `section.supplementaryContentInsetsReference`에 반영합니다.
+- deprecated `supplementariesFollowContentInsets`는 사용하지 않습니다.
+- `.horizontal(width:height:)`는 기존 API를 유지하되 `sectionContentInsets`가 있으면 spacing/2 자동 inset보다 우선합니다.
+- `.itemSpacing(_:)`은 horizontal에서 `interGroupSpacing`에만 반영합니다.
+- fixed grid는 `itemHeight`를 absolute height로 쓰고, `columnSpacing`은 group 내부 x 좌표 계산에, `rowSpacing`은 section `interGroupSpacing`에 반영합니다.
+- section contentInsets, supplementary inset reference, fixed grid metric은 layout signature에 포함합니다.
+
+### 테스트 포인트
+
+- horizontal layout에서 section contentInsets와 itemSpacing이 함께 반영되는지 확인합니다.
+- supplementaryContentInsetsReference가 layout section에 반영되는지 확인합니다.
+- fixed grid에서 item height, column spacing, row spacing, content inset 기반 width 계산이 반영되는지 확인합니다.
+- sectionContentInsets, supplementaryContentInsetsReference, fixed grid metric 변경 시 layout signature가 바뀌는지 확인합니다.
+
+## Supplementary header hosting margin 제거
+
+### 문제
+
+ListKit의 header/footer는 SwiftUI content를 `UIHostingConfiguration { ... }.makeContentView()`로 만든 뒤 `LKHostingSupplementaryView`에 꽉 채워 붙입니다.
+
+하지만 `UIHostingConfiguration`은 기본 content margin을 가집니다. 이 기본 margin 때문에 supplementary header 내부 SwiftUI content가 section item보다 좌우로 더 안쪽에 렌더링될 수 있었습니다.
+
+HomeFeature에서는 section content inset과 header padding을 같은 값으로 맞춰도 header만 약 8pt 더 안쪽으로 들어갔고, 앱 코드에서 임시 보정이 필요했습니다.
+
+```swift
+private extension View {
+    func homeHeaderHostingMarginCompensation() -> some View {
+        padding(.horizontal, -8)
+    }
+}
+```
+
+이 보정은 앱 화면 코드가 UIKit hosting detail을 알아야 하므로 ListKit 내부에서 처리해야 합니다.
+
+### 해결방법
+
+supplementary hosting 경로에만 `UIHostingConfiguration` margin 제거를 적용했습니다.
+
+```swift
+UIHostingConfiguration {
+    makeContent()
+        .environment(\.lkCellState, state)
+}
+.margins(.all, 0)
+.makeContentView()
+```
+
+cell content configuration 경로는 기존대로 둡니다.
+
+```swift
+UIHostingConfiguration {
+    makeContent()
+        .environment(\.lkCellState, state)
+        .environment(\.listKitIndexPath, indexPath)
+        .environment(\.listKitSectionID, sectionID)
+        .environment(\.listKitItemID, itemID)
+}
+```
+
+### 구현 정책
+
+- margin 제거는 header/footer supplementary에만 적용합니다.
+- cell의 기본 `UIHostingConfiguration` margin 동작은 변경하지 않습니다.
+- `LKHostingSupplementaryView`의 hosted content view는 기존처럼 supplementary bounds에 constraint로 꽉 채웁니다.
+- `headerBackground`와 `pinnedHeader(background:)`는 기존처럼 reusable view, hosted content view, full-bleed background view에 적용합니다.
+- 앱 코드는 `padding(.horizontal, -8)` 같은 hosting margin compensation을 넣지 않아야 합니다.
+
+### 테스트 포인트
+
+- supplementary hosted SwiftUI content가 hosted content view bounds의 leading/trailing에 맞게 붙는지 확인합니다.
+- section contentInsets가 있는 header content leading이 item leading과 일치하는지 확인합니다.
+- cell hosting configuration은 기본 margin을 유지하는지 확인합니다.

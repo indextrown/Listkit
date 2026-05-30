@@ -151,6 +151,42 @@ public struct LKSection {
         )
     }
 
+    public func sectionContentInsets(_ insets: LKEdgeInsets) -> Self {
+        var model = model
+        model.sectionContentInsets = insets
+        return Self(
+            model: model,
+            events: events,
+            headerEvents: headerEvents,
+            footerEvents: footerEvents,
+            rows: rows
+        )
+    }
+
+    public func supplementaryContentInsetsReference(_ reference: UIContentInsetsReference) -> Self {
+        var model = model
+        model.supplementaryContentInsetsReference = reference
+        return Self(
+            model: model,
+            events: events,
+            headerEvents: headerEvents,
+            footerEvents: footerEvents,
+            rows: rows
+        )
+    }
+
+    public func headerFollowsSectionInsets(_ follows: Bool) -> Self {
+        var model = model
+        model.supplementaryContentInsetsReference = follows ? nil : UIContentInsetsReference.none
+        return Self(
+            model: model,
+            events: events,
+            headerEvents: headerEvents,
+            footerEvents: footerEvents,
+            rows: rows
+        )
+    }
+
     public func pinnedHeader(_ isPinned: Bool = true) -> Self {
         var model = model
         model.pinsHeader = isPinned

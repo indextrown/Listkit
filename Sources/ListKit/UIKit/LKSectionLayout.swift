@@ -10,7 +10,24 @@ public enum LKSectionLayout {
     case list(appearance: UICollectionLayoutListConfiguration.Appearance)
     case horizontal(width: CGFloat, height: CGFloat? = nil)
     case grid(columns: Int, spacing: CGFloat)
+    case fixedGrid(columns: Int, itemHeight: CGFloat, columnSpacing: CGFloat, rowSpacing: CGFloat)
     case custom(LKCustomSectionLayoutProvider)
+}
+
+extension LKSectionLayout {
+    public static func grid(
+        columns: Int,
+        itemHeight: CGFloat,
+        columnSpacing: CGFloat,
+        rowSpacing: CGFloat
+    ) -> Self {
+        .fixedGrid(
+            columns: columns,
+            itemHeight: itemHeight,
+            columnSpacing: columnSpacing,
+            rowSpacing: rowSpacing
+        )
+    }
 }
 
 public enum LKSectionScrollAxis: Hashable, Sendable {
@@ -55,6 +72,14 @@ extension LKSectionLayout: Equatable {
             lhsWidth == rhsWidth && lhsHeight == rhsHeight
         case let (.grid(lhsColumns, lhsSpacing), .grid(rhsColumns, rhsSpacing)):
             lhsColumns == rhsColumns && lhsSpacing == rhsSpacing
+        case let (
+            .fixedGrid(lhsColumns, lhsItemHeight, lhsColumnSpacing, lhsRowSpacing),
+            .fixedGrid(rhsColumns, rhsItemHeight, rhsColumnSpacing, rhsRowSpacing)
+        ):
+            lhsColumns == rhsColumns
+                && lhsItemHeight == rhsItemHeight
+                && lhsColumnSpacing == rhsColumnSpacing
+                && lhsRowSpacing == rhsRowSpacing
         case (.custom, .custom):
             true
         default:
@@ -72,6 +97,8 @@ extension LKSectionLayout {
             "horizontal-\(width)-\(height.map(String.init(describing:)) ?? "estimated")"
         case let .grid(columns, spacing):
             "grid-\(columns)-\(spacing)"
+        case let .fixedGrid(columns, itemHeight, columnSpacing, rowSpacing):
+            "fixed-grid-\(columns)-\(itemHeight)-\(columnSpacing)-\(rowSpacing)"
         case .custom:
             "custom"
         }

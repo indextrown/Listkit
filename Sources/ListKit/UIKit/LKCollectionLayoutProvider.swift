@@ -46,9 +46,39 @@ enum LKCollectionLayoutProvider {
             let footer = section.footer == nil ? "no-footer" : "footer"
             let layout = section.layout?.signature ?? "default"
             let itemSpacing = section.itemSpacing.map(String.init(describing:)) ?? "default-spacing"
-            return "\(section.id)-\(header)-\(footer)-\(layout)-\(section.scrollAxis)-\(section.orthogonalScrollingBehavior)-\(itemSpacing)-pinned-\(section.pinsHeader)"
+            let contentInsets = section.sectionContentInsets?.signature ?? "default-insets"
+            let supplementaryInsetsReference = section.supplementaryContentInsetsReference?.signature ?? "default-supplementary-insets-reference"
+            return "\(section.id)-\(header)-\(footer)-\(layout)-\(section.scrollAxis)-\(section.orthogonalScrollingBehavior)-\(itemSpacing)-\(contentInsets)-\(supplementaryInsetsReference)-pinned-\(section.pinsHeader)"
         }
         return "\(defaultStyle)-\(sectionSignatures.joined(separator: "|"))"
+    }
+
+    static func makeHorizontalSectionForTesting(
+        model: LKSectionModel,
+        width: CGFloat?,
+        height: CGFloat?
+    ) -> NSCollectionLayoutSection {
+        makeHorizontalSection(for: model, width: width, height: height)
+    }
+
+    static func makeGridSectionForTesting(
+        columns: Int,
+        spacing: CGFloat?,
+        itemHeight: CGFloat?,
+        columnSpacing: CGFloat?,
+        rowSpacing: CGFloat?,
+        model: LKSectionModel,
+        effectiveContentWidth: CGFloat
+    ) -> NSCollectionLayoutSection {
+        makeGridSection(
+            columns: columns,
+            spacing: spacing,
+            itemHeight: itemHeight,
+            columnSpacing: columnSpacing,
+            rowSpacing: rowSpacing,
+            model: model,
+            effectiveContentWidth: effectiveContentWidth
+        )
     }
 
     private static func makeSection(
@@ -73,10 +103,33 @@ enum LKCollectionLayoutProvider {
                 height: height
             )
         case let .grid(columns, spacing):
-            layoutSection = makeGridSection(columns: columns, spacing: spacing, model: model)
+            layoutSection = makeGridSection(
+                columns: columns,
+                spacing: spacing,
+                itemHeight: nil,
+                columnSpacing: nil,
+                rowSpacing: nil,
+                model: model,
+                effectiveContentWidth: environment.container.effectiveContentSize.width
+            )
+        case let .fixedGrid(columns, itemHeight, columnSpacing, rowSpacing):
+            layoutSection = makeGridSection(
+                columns: columns,
+                spacing: nil,
+                itemHeight: itemHeight,
+                columnSpacing: columnSpacing,
+                rowSpacing: rowSpacing,
+                model: model,
+                effectiveContentWidth: environment.container.effectiveContentSize.width
+            )
         case let .custom(provider):
             layoutSection = provider(sectionIndex, environment)
             applyItemSpacing(model.itemSpacing, to: layoutSection)
+            applySectionContentInsets(model.sectionContentInsets, to: layoutSection)
+            applySupplementaryContentInsetsReference(
+                model.supplementaryContentInsetsReference,
+                to: layoutSection
+            )
             applyPinnedHeader(model.pinsHeader, to: layoutSection)
             if model.scrollAxis == .horizontal {
                 applyScrollAxis(
@@ -91,6 +144,11 @@ enum LKCollectionLayoutProvider {
         applyScrollAxis(
             model.scrollAxis,
             behavior: model.orthogonalScrollingBehavior,
+            to: layoutSection
+        )
+        applySectionContentInsets(model.sectionContentInsets, to: layoutSection)
+        applySupplementaryContentInsetsReference(
+            model.supplementaryContentInsetsReference,
             to: layoutSection
         )
         return layoutSection
@@ -111,6 +169,11 @@ enum LKCollectionLayoutProvider {
             layoutSection.boundarySupplementaryItems = boundarySupplementaryItems(for: section)
         }
         applyItemSpacing(section?.itemSpacing, to: layoutSection)
+        applySectionContentInsets(section?.sectionContentInsets, to: layoutSection)
+        applySupplementaryContentInsetsReference(
+            section?.supplementaryContentInsetsReference,
+            to: layoutSection
+        )
         applyScrollAxis(
             scrollAxis,
             behavior: section?.orthogonalScrollingBehavior ?? .continuous,
@@ -155,11 +218,16 @@ enum LKCollectionLayoutProvider {
 
         let section = NSCollectionLayoutSection(group: group)
         section.interGroupSpacing = effectiveSpacing
-        section.contentInsets = NSDirectionalEdgeInsets(
-            top: effectiveSpacing / 2,
-            leading: effectiveSpacing / 2,
-            bottom: effectiveSpacing / 2,
-            trailing: effectiveSpacing / 2
+        section.contentInsets = model.sectionContentInsets?.directionalInsets
+            ?? NSDirectionalEdgeInsets(
+                top: effectiveSpacing / 2,
+                leading: effectiveSpacing / 2,
+                bottom: effectiveSpacing / 2,
+                trailing: effectiveSpacing / 2
+            )
+        applySupplementaryContentInsetsReference(
+            model.supplementaryContentInsetsReference,
+            to: section
         )
         section.boundarySupplementaryItems = boundarySupplementaryItems(for: model)
         applyScrollAxis(.horizontal, behavior: model.orthogonalScrollingBehavior, to: section)
@@ -168,41 +236,87 @@ enum LKCollectionLayoutProvider {
 
     private static func makeGridSection(
         columns: Int,
-        spacing: CGFloat,
-        model: LKSectionModel
+        spacing: CGFloat?,
+        itemHeight: CGFloat?,
+        columnSpacing: CGFloat?,
+        rowSpacing: CGFloat?,
+        model: LKSectionModel,
+        effectiveContentWidth: CGFloat
     ) -> NSCollectionLayoutSection {
         let safeColumns = max(columns, 1)
-        let effectiveSpacing = model.itemSpacing ?? spacing
+        let fallbackSpacing = model.itemSpacing ?? spacing ?? 0
+        let effectiveColumnSpacing = columnSpacing ?? fallbackSpacing
+        let effectiveRowSpacing = rowSpacing ?? fallbackSpacing
         let isHorizontal = model.scrollAxis == .horizontal
-        let itemWidth: NSCollectionLayoutDimension = isHorizontal
-            ? .estimated(44)
-            : .fractionalWidth(1.0 / CGFloat(safeColumns))
-        let groupWidth: NSCollectionLayoutDimension = isHorizontal
-            ? .estimated(estimatedHorizontalGroupWidth(columns: safeColumns, spacing: effectiveSpacing))
-            : .fractionalWidth(1)
-        let itemSize = NSCollectionLayoutSize(
-            widthDimension: itemWidth,
-            heightDimension: .estimated(44)
-        )
-        let item = NSCollectionLayoutItem(layoutSize: itemSize)
+        let contentInsets = model.sectionContentInsets?.directionalInsets
+            ?? NSDirectionalEdgeInsets(
+                top: fallbackSpacing / 2,
+                leading: fallbackSpacing / 2,
+                bottom: fallbackSpacing / 2,
+                trailing: fallbackSpacing / 2
+            )
+        let heightDimension: NSCollectionLayoutDimension = itemHeight.map {
+            .absolute(max($0, 1))
+        } ?? .estimated(44)
+        let section: NSCollectionLayoutSection
 
-        let groupSize = NSCollectionLayoutSize(
-            widthDimension: groupWidth,
-            heightDimension: .estimated(44)
-        )
-        let group = NSCollectionLayoutGroup.horizontal(
-            layoutSize: groupSize,
-            repeatingSubitem: item,
-            count: safeColumns
-        )
-        group.interItemSpacing = .fixed(effectiveSpacing)
-        let section = NSCollectionLayoutSection(group: group)
-        section.interGroupSpacing = effectiveSpacing
-        section.contentInsets = NSDirectionalEdgeInsets(
-            top: effectiveSpacing / 2,
-            leading: effectiveSpacing / 2,
-            bottom: effectiveSpacing / 2,
-            trailing: effectiveSpacing / 2
+        if let itemHeight {
+            let groupWidth = isHorizontal
+                ? estimatedHorizontalGroupWidth(columns: safeColumns, spacing: effectiveColumnSpacing)
+                : max(
+                    effectiveContentWidth - contentInsets.leading - contentInsets.trailing,
+                    0
+                )
+            let totalColumnSpacing = effectiveColumnSpacing * CGFloat(safeColumns - 1)
+            let itemWidth = max((groupWidth - totalColumnSpacing) / CGFloat(safeColumns), 0)
+            let groupSize = NSCollectionLayoutSize(
+                widthDimension: .absolute(groupWidth),
+                heightDimension: .absolute(max(itemHeight, 1))
+            )
+            let group = NSCollectionLayoutGroup.custom(layoutSize: groupSize) { _ in
+                (0..<safeColumns).map { column in
+                    let x = CGFloat(column) * (itemWidth + effectiveColumnSpacing)
+                    return NSCollectionLayoutGroupCustomItem(
+                        frame: CGRect(
+                            x: x,
+                            y: 0,
+                            width: itemWidth,
+                            height: max(itemHeight, 1)
+                        )
+                    )
+                }
+            }
+            section = NSCollectionLayoutSection(group: group)
+        } else {
+            let itemWidth: NSCollectionLayoutDimension = isHorizontal
+                ? .estimated(44)
+                : .fractionalWidth(1.0 / CGFloat(safeColumns))
+            let groupWidth: NSCollectionLayoutDimension = isHorizontal
+                ? .estimated(estimatedHorizontalGroupWidth(columns: safeColumns, spacing: effectiveColumnSpacing))
+                : .fractionalWidth(1)
+            let itemSize = NSCollectionLayoutSize(
+                widthDimension: itemWidth,
+                heightDimension: heightDimension
+            )
+            let item = NSCollectionLayoutItem(layoutSize: itemSize)
+
+            let groupSize = NSCollectionLayoutSize(
+                widthDimension: groupWidth,
+                heightDimension: heightDimension
+            )
+            let group = NSCollectionLayoutGroup.horizontal(
+                layoutSize: groupSize,
+                repeatingSubitem: item,
+                count: safeColumns
+            )
+            group.interItemSpacing = .fixed(effectiveColumnSpacing)
+            section = NSCollectionLayoutSection(group: group)
+        }
+        section.interGroupSpacing = effectiveRowSpacing
+        section.contentInsets = contentInsets
+        applySupplementaryContentInsetsReference(
+            model.supplementaryContentInsetsReference,
+            to: section
         )
         section.boundarySupplementaryItems = boundarySupplementaryItems(for: model)
         return section
@@ -222,6 +336,26 @@ enum LKCollectionLayoutProvider {
             return
         }
         section.interGroupSpacing = spacing
+    }
+
+    private static func applySectionContentInsets(
+        _ insets: LKEdgeInsets?,
+        to section: NSCollectionLayoutSection
+    ) {
+        guard let insets else {
+            return
+        }
+        section.contentInsets = insets.directionalInsets
+    }
+
+    private static func applySupplementaryContentInsetsReference(
+        _ reference: UIContentInsetsReference?,
+        to section: NSCollectionLayoutSection
+    ) {
+        guard let reference else {
+            return
+        }
+        section.supplementaryContentInsetsReference = reference
     }
 
     private static func applyScrollAxis(
@@ -278,6 +412,22 @@ enum LKCollectionLayoutProvider {
         }
 
         return items
+    }
+}
+
+private extension LKEdgeInsets {
+    var directionalInsets: NSDirectionalEdgeInsets {
+        NSDirectionalEdgeInsets(top: top, leading: left, bottom: bottom, trailing: right)
+    }
+
+    var signature: String {
+        "\(top),\(left),\(bottom),\(right)"
+    }
+}
+
+private extension UIContentInsetsReference {
+    var signature: String {
+        String(describing: self)
     }
 }
 #endif

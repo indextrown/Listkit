@@ -6,6 +6,16 @@ import SwiftUI
 
 @MainActor
 final class LKCollectionViewAdapterTests: XCTestCase {
+    private final class LayoutProbeView: UIView {}
+
+    private struct LayoutProbe: UIViewRepresentable {
+        func makeUIView(context: Context) -> LayoutProbeView {
+            LayoutProbeView()
+        }
+
+        func updateUIView(_ uiView: LayoutProbeView, context: Context) {}
+    }
+
     private struct EnvironmentProbeView: View {
         @Environment(\.listKitIsSelected) private var isSelected
         @Environment(\.listKitIsHighlighted) private var isHighlighted
@@ -1433,6 +1443,134 @@ final class LKCollectionViewAdapterTests: XCTestCase {
         XCTAssertEqual(supplementaryView.fullBleedBackgroundView?.frame.width, collectionView.bounds.width)
     }
 
+    func testSupplementaryHostingConfigurationRemovesDefaultMargins() {
+        let supplementaryView = LKHostingSupplementaryView(
+            frame: CGRect(x: 0, y: 0, width: 320, height: 44)
+        )
+        let header = LKSupplementaryModel(id: "header", kind: .header) {
+            AnyView(
+                Text("Header")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .background(LayoutProbe())
+            )
+        }
+
+        let collectionView = makeCollectionView()
+        collectionView.addSubview(supplementaryView)
+        let window = makeVisibleWindow(for: collectionView)
+        defer { window.isHidden = true }
+
+        supplementaryView.render(supplementary: header)
+        supplementaryView.layoutIfNeeded()
+        supplementaryView.hostedContentView?.layoutIfNeeded()
+
+        guard let probe = findProbe(in: supplementaryView),
+              let hostedContentView = supplementaryView.hostedContentView
+        else {
+            XCTFail("Expected supplementary hosted content probe")
+            return
+        }
+        let probeFrame = probe.convert(probe.bounds, to: hostedContentView)
+
+        XCTAssertEqual(probeFrame.minX, hostedContentView.bounds.minX, accuracy: 0.5)
+        XCTAssertEqual(probeFrame.maxX, hostedContentView.bounds.maxX, accuracy: 0.5)
+    }
+
+    func testSupplementaryHeaderContentAlignsWithSectionContentInsetsLeading() {
+        var header = LKSupplementaryModel(id: "header", kind: .header) {
+            AnyView(
+                Text("Header")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .background(LayoutProbe())
+            )
+        }
+        header.backgroundColor = .systemBackground
+        var section = LKSectionModel(
+            id: "section",
+            items: [LKItemModel(id: "item")],
+            header: header
+        )
+        section.layout = .grid(columns: 1, spacing: 0)
+        section.sectionContentInsets = LKEdgeInsets(top: 0, leading: 15, bottom: 0, trailing: 15)
+        let model = LKListModel(sections: [section])
+        let collectionView = UICollectionView(
+            frame: CGRect(x: 0, y: 0, width: 320, height: 480),
+            collectionViewLayout: LKCollectionLayoutProvider.makeLayout(
+                model: model,
+                defaultStyle: .plain
+            )
+        )
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView, model: model)
+        let window = makeVisibleWindow(for: collectionView)
+        defer { window.isHidden = true }
+
+        collectionView.reloadData()
+        collectionView.layoutIfNeeded()
+
+        let indexPath = IndexPath.lkIndexPath(item: 0, section: 0)
+        guard let headerAttributes = collectionView.collectionViewLayout.layoutAttributesForSupplementaryView(
+            ofKind: UICollectionView.elementKindSectionHeader,
+            at: indexPath
+        ), let itemAttributes = collectionView.collectionViewLayout.layoutAttributesForItem(at: indexPath) else {
+            XCTFail("Expected layout attributes")
+            return
+        }
+        guard let headerView = adapter.collectionView(
+            collectionView,
+            viewForSupplementaryElementOfKind: UICollectionView.elementKindSectionHeader,
+            at: indexPath
+        ) as? LKHostingSupplementaryView else {
+            XCTFail("Expected hosting supplementary view")
+            return
+        }
+        collectionView.addSubview(headerView)
+        headerView.frame = headerAttributes.frame
+        headerView.layoutIfNeeded()
+        headerView.hostedContentView?.layoutIfNeeded()
+
+        guard let probe = findProbe(in: headerView) else {
+            XCTFail("Expected header content probe")
+            return
+        }
+        let probeFrame = probe.convert(probe.bounds, to: collectionView)
+
+        XCTAssertEqual(probeFrame.minX, itemAttributes.frame.minX, accuracy: 0.5)
+    }
+
+    func testCellHostingConfigurationKeepsDefaultMargins() {
+        let item = LKItemModel(id: "item") {
+            AnyView(
+                Text("Row")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .background(LayoutProbe())
+            )
+        }
+        let model = LKListModel(sections: [LKSectionModel(id: "section", items: [item])])
+        let collectionView = makeCollectionView()
+        let adapter = LKCollectionViewAdapter(collectionView: collectionView, model: model)
+        let window = makeVisibleWindow(for: collectionView)
+        defer { window.isHidden = true }
+
+        collectionView.reloadData()
+        collectionView.layoutIfNeeded()
+        let cell = adapter.collectionView(
+            collectionView,
+            cellForItemAt: IndexPath.lkIndexPath(item: 0, section: 0)
+        )
+        collectionView.addSubview(cell)
+        cell.frame = CGRect(x: 0, y: 0, width: 320, height: 44)
+        cell.layoutIfNeeded()
+        cell.contentView.layoutIfNeeded()
+
+        guard let probe = findProbe(in: cell) else {
+            XCTFail("Expected cell content probe")
+            return
+        }
+        let probeFrame = probe.convert(probe.bounds, to: cell.contentView)
+
+        XCTAssertGreaterThan(probeFrame.minX, cell.contentView.bounds.minX)
+    }
+
     func testCellConfigurationStateIsRenderedIntoSwiftUIEnvironmentState() {
         let cell = LKHostingCollectionViewCell(frame: .zero)
         let item = LKItemModel(id: "item") {
@@ -2023,6 +2161,20 @@ final class LKCollectionViewAdapterTests: XCTestCase {
                 ),
             ]
         )
+    }
+
+    private func findProbe(in view: UIView) -> LayoutProbeView? {
+        if let probe = view as? LayoutProbeView {
+            return probe
+        }
+
+        for subview in view.subviews {
+            if let probe = findProbe(in: subview) {
+                return probe
+            }
+        }
+
+        return nil
     }
 
     private func applyDiffable(

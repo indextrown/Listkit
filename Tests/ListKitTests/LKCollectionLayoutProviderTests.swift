@@ -200,6 +200,81 @@ final class LKCollectionLayoutProviderTests: XCTestCase {
         XCTAssertEqual(customSection?.orthogonalScrollingBehavior, .groupPagingCentered)
     }
 
+    func testHorizontalLayoutAppliesSectionContentInsetsAndItemSpacing() {
+        var section = makeModel().sections[0]
+        section.layout = .horizontal(width: 194, height: 271)
+        section.scrollAxis = .horizontal
+        section.itemSpacing = 15
+        section.sectionContentInsets = LKEdgeInsets(top: 0, leading: 20, bottom: 50, trailing: 20)
+
+        let layoutSection = LKCollectionLayoutProvider.makeHorizontalSectionForTesting(
+            model: section,
+            width: 194,
+            height: 271
+        )
+
+        XCTAssertEqual(layoutSection.contentInsets.leading, 20)
+        XCTAssertEqual(layoutSection.contentInsets.bottom, 50)
+        XCTAssertEqual(layoutSection.interGroupSpacing, 15)
+    }
+
+    func testSupplementaryContentInsetsReferenceAppliesToLayoutSection() {
+        var section = makeModel().sections[0]
+        section.layout = .horizontal(width: 100, height: 100)
+        section.sectionContentInsets = LKEdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20)
+        section.supplementaryContentInsetsReference = UIContentInsetsReference.none
+
+        let layoutSection = LKCollectionLayoutProvider.makeHorizontalSectionForTesting(
+            model: section,
+            width: 100,
+            height: 100
+        )
+
+        XCTAssertEqual(layoutSection.supplementaryContentInsetsReference, .none)
+    }
+
+    func testFixedGridLayoutAppliesHeightColumnSpacingRowSpacingAndInsets() {
+        var section = makeModel().sections[0]
+        section.items = [
+            LKItemModel(id: "first"),
+            LKItemModel(id: "second"),
+            LKItemModel(id: "third"),
+        ]
+        section.layout = .grid(columns: 2, itemHeight: 302, columnSpacing: 15, rowSpacing: 20)
+        section.sectionContentInsets = LKEdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20)
+        let model = LKListModel(sections: [section])
+        let fixture = makeCollectionView(model: model, style: .plain)
+
+        fixture.collectionView.layoutIfNeeded()
+
+        let first = fixture.collectionView.layoutAttributesForItem(
+            at: IndexPath.lkIndexPath(item: 0, section: 0)
+        )?.frame
+        let second = fixture.collectionView.layoutAttributesForItem(
+            at: IndexPath.lkIndexPath(item: 1, section: 0)
+        )?.frame
+        let third = fixture.collectionView.layoutAttributesForItem(
+            at: IndexPath.lkIndexPath(item: 2, section: 0)
+        )?.frame
+
+        XCTAssertEqual(first?.minX ?? 0, 20, accuracy: 0.5)
+        XCTAssertEqual(first?.height ?? 0, 302, accuracy: 0.5)
+        XCTAssertEqual((second?.minX ?? 0) - (first?.maxX ?? 0), 15, accuracy: 0.5)
+        XCTAssertEqual((third?.minY ?? 0) - (first?.maxY ?? 0), 20, accuracy: 0.5)
+
+        let layoutSection = LKCollectionLayoutProvider.makeGridSectionForTesting(
+            columns: 2,
+            spacing: nil,
+            itemHeight: 302,
+            columnSpacing: 15,
+            rowSpacing: 20,
+            model: section,
+            effectiveContentWidth: 320
+        )
+        XCTAssertEqual(layoutSection.interGroupSpacing, 20)
+        XCTAssertEqual(layoutSection.contentInsets.leading, 20)
+    }
+
     func testLayoutSignatureChangesWhenSectionItemSpacingChanges() {
         let originalModel = makeModel()
         var changedSection = originalModel.sections[0]
@@ -221,6 +296,72 @@ final class LKCollectionLayoutProviderTests: XCTestCase {
         XCTAssertNotEqual(
             LKCollectionLayoutProvider.signature(model: originalModel, defaultStyle: .plain),
             LKCollectionLayoutProvider.signature(model: changedModel, defaultStyle: .plain)
+        )
+    }
+
+    func testLayoutSignatureChangesWhenSectionContentInsetsChange() {
+        let originalModel = makeModel()
+        var changedSection = originalModel.sections[0]
+        changedSection.sectionContentInsets = LKEdgeInsets(top: 0, leading: 20, bottom: 50, trailing: 20)
+        let changedModel = LKListModel(sections: [changedSection])
+
+        XCTAssertNotEqual(
+            LKCollectionLayoutProvider.signature(model: originalModel, defaultStyle: .plain),
+            LKCollectionLayoutProvider.signature(model: changedModel, defaultStyle: .plain)
+        )
+    }
+
+    func testLayoutSignatureChangesWhenSupplementaryContentInsetsReferenceChanges() {
+        let originalModel = makeModel()
+        var changedSection = originalModel.sections[0]
+        changedSection.supplementaryContentInsetsReference = UIContentInsetsReference.none
+        let changedModel = LKListModel(sections: [changedSection])
+
+        XCTAssertNotEqual(
+            LKCollectionLayoutProvider.signature(model: originalModel, defaultStyle: .plain),
+            LKCollectionLayoutProvider.signature(model: changedModel, defaultStyle: .plain)
+        )
+    }
+
+    func testLayoutSignatureChangesWhenFixedGridMetricsChange() {
+        var originalSection = makeModel().sections[0]
+        originalSection.layout = .grid(columns: 2, itemHeight: 302, columnSpacing: 15, rowSpacing: 20)
+        var changedSection = originalSection
+        changedSection.layout = .grid(columns: 2, itemHeight: 303, columnSpacing: 15, rowSpacing: 20)
+
+        XCTAssertNotEqual(
+            LKCollectionLayoutProvider.signature(
+                model: LKListModel(sections: [originalSection]),
+                defaultStyle: .plain
+            ),
+            LKCollectionLayoutProvider.signature(
+                model: LKListModel(sections: [changedSection]),
+                defaultStyle: .plain
+            )
+        )
+
+        changedSection.layout = .grid(columns: 2, itemHeight: 302, columnSpacing: 16, rowSpacing: 20)
+        XCTAssertNotEqual(
+            LKCollectionLayoutProvider.signature(
+                model: LKListModel(sections: [originalSection]),
+                defaultStyle: .plain
+            ),
+            LKCollectionLayoutProvider.signature(
+                model: LKListModel(sections: [changedSection]),
+                defaultStyle: .plain
+            )
+        )
+
+        changedSection.layout = .grid(columns: 2, itemHeight: 302, columnSpacing: 15, rowSpacing: 21)
+        XCTAssertNotEqual(
+            LKCollectionLayoutProvider.signature(
+                model: LKListModel(sections: [originalSection]),
+                defaultStyle: .plain
+            ),
+            LKCollectionLayoutProvider.signature(
+                model: LKListModel(sections: [changedSection]),
+                defaultStyle: .plain
+            )
         )
     }
 

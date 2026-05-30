@@ -66,20 +66,6 @@ public struct LKScrollContext {
     }
 }
 
-public struct LKEdgeInsets: Equatable {
-    public let top: CGFloat
-    public let left: CGFloat
-    public let bottom: CGFloat
-    public let right: CGFloat
-
-    public init(top: CGFloat, left: CGFloat, bottom: CGFloat, right: CGFloat) {
-        self.top = top
-        self.left = left
-        self.bottom = bottom
-        self.right = right
-    }
-}
-
 /// List-level event storage.
 public struct LKListEvents {
     var shouldSelect: ((LKAnyItemContext) -> Bool)?

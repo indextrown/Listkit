@@ -260,7 +260,16 @@ final class LKCollectionViewAdapter: NSObject {
         }
 
         for section in model.sections {
-            guard case let .grid(columns, _) = section.layout, columns < 1 else {
+            let columns: Int?
+            switch section.layout {
+            case let .grid(gridColumns, _):
+                columns = gridColumns
+            case let .fixedGrid(gridColumns, _, _, _):
+                columns = gridColumns
+            default:
+                columns = nil
+            }
+            guard let columns, columns < 1 else {
                 continue
             }
             emitWarning(
@@ -1389,6 +1398,8 @@ private extension LKSectionModel {
             && scrollAxis == other.scrollAxis
             && orthogonalScrollingBehavior == other.orthogonalScrollingBehavior
             && itemSpacing == other.itemSpacing
+            && sectionContentInsets == other.sectionContentInsets
+            && supplementaryContentInsetsReference == other.supplementaryContentInsetsReference
             && pinsHeader == other.pinsHeader
         #else
         return coreMatches

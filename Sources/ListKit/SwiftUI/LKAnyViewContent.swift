@@ -74,7 +74,9 @@ private struct LKViewContentBox<Content: View>: LKAnyViewContentBox {
         UIHostingConfiguration {
             makeContent()
                 .environment(\.lkCellState, state)
-        }.makeContentView()
+        }
+        .margins(.all, 0)
+        .makeContentView()
     }
     #endif
 }

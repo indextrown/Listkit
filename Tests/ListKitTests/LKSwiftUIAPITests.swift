@@ -153,9 +153,21 @@ final class LKSwiftUIAPITests: XCTestCase {
             }
             .sectionLayout(.horizontal(width: 300))
         }
+        let fixedGridList = LKList {
+            LKSection(id: "section") {
+                LKRow(id: "item") {
+                    Text("Item")
+                }
+            }
+            .sectionLayout(.grid(columns: 2, itemHeight: 302, columnSpacing: 15, rowSpacing: 20))
+        }
 
         XCTAssertEqual(gridList.model.sections[0].layout, .grid(columns: 2, spacing: 8))
         XCTAssertEqual(horizontalList.model.sections[0].layout, .horizontal(width: 300))
+        XCTAssertEqual(
+            fixedGridList.model.sections[0].layout,
+            .fixedGrid(columns: 2, itemHeight: 302, columnSpacing: 15, rowSpacing: 20)
+        )
     }
 
     func testCustomSectionLayoutAcceptsFactoryReturnedProvider() {
@@ -220,6 +232,44 @@ final class LKSwiftUIAPITests: XCTestCase {
         }
 
         XCTAssertEqual(list.model.sections[0].itemSpacing, 12)
+    }
+
+    func testSectionContentInsetsModifierStoresInsetsInModel() {
+        let list = LKList {
+            LKSection(id: "section") {
+                LKRow(id: "item") {
+                    Text("Item")
+                }
+            }
+            .sectionContentInsets(LKEdgeInsets(top: 0, leading: 20, bottom: 50, trailing: 20))
+        }
+
+        XCTAssertEqual(
+            list.model.sections[0].sectionContentInsets,
+            LKEdgeInsets(top: 0, leading: 20, bottom: 50, trailing: 20)
+        )
+    }
+
+    func testSupplementaryContentInsetsReferenceModifierStoresReferenceInModel() {
+        let referenceList = LKList {
+            LKSection(id: "section") {
+                LKRow(id: "item") {
+                    Text("Item")
+                }
+            }
+            .supplementaryContentInsetsReference(.none)
+        }
+        let headerFollowsList = LKList {
+            LKSection(id: "section") {
+                LKRow(id: "item") {
+                    Text("Item")
+                }
+            }
+            .headerFollowsSectionInsets(false)
+        }
+
+        XCTAssertEqual(referenceList.model.sections[0].supplementaryContentInsetsReference, UIContentInsetsReference.none)
+        XCTAssertEqual(headerFollowsList.model.sections[0].supplementaryContentInsetsReference, UIContentInsetsReference.none)
     }
 
     func testPinnedHeaderModifierStoresPinningInModel() {
